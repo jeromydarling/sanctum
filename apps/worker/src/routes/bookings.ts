@@ -137,16 +137,25 @@ export async function handleCreateBooking(
     body: `${body.event_name} on ${formatDate(start_time)}`,
     action_url: `/operator/bookings/${id}`,
   });
-  if (!isManual && facility.email) {
-    await sendEmail(env, {
-      to: facility.email as string,
-      subject: `New booking request: ${body.event_name}`,
-      html: emailLayout(
-        'New booking request',
-        `<p>A new request came in for <strong>${escapeHtml(body.event_name)}</strong> on ${formatDate(start_time)}.</p>`,
-        { label: 'Review the request', url: `${env.APP_URL || ''}/operator/bookings/${id}` },
-      ),
-    });
+  if (!isManual) {
+    // Prefer the facility's public contact email; fall back to the operator's account email.
+    let hostEmail = (facility.email as string | null) || null;
+    if (!hostEmail) {
+      const op = await env.DB.prepare('SELECT email FROM profiles WHERE id = ?')
+        .bind(facility.operator_id).first<{ email: string }>();
+      hostEmail = op?.email || null;
+    }
+    if (hostEmail) {
+      await sendEmail(env, {
+        to: hostEmail,
+        subject: `New booking request: ${body.event_name}`,
+        html: emailLayout(
+          'New booking request',
+          `<p>A new request came in for <strong>${escapeHtml(body.event_name)}</strong> on ${formatDate(start_time)}.</p>`,
+          { label: 'Review the request', url: `${env.APP_URL || ''}/operator/bookings/${id}` },
+        ),
+      });
+    }
   }
 
   const saved = await getBooking(env, id);
@@ -221,19 +230,57 @@ export async function handleBookingStatus(
     )
     .run();
 
-  // Notify the renter on operator-driven status changes.
+  // Notify the renter on operator-driven status changes (in-app + email to the tenant).
+  const renter = await env.DB.prepare('SELECT email, full_name FROM profiles WHERE id = ?')
+    .bind(booking.renter_id).first<{ email: string; full_name: string | null }>();
+  const bookingUrl = `${env.APP_URL || ''}/renter/bookings/${bookingId}`;
+
   if (action === 'approve') {
     await notify(env, booking.renter_id as string, {
       title: 'Booking approved 🎉',
       body: `${booking.event_name} is approved. Next: insurance & payment.`,
       action_url: `/renter/bookings/${bookingId}`,
     });
+    if (renter?.email) {
+      await sendEmail(env, {
+        to: renter.email,
+        subject: `Your booking is approved: ${booking.event_name}`,
+        html: emailLayout(
+          'Your booking is approved 🎉',
+          `<p>Good news${renter.full_name ? `, ${escapeHtml(renter.full_name.split(' ')[0])}` : ''} — your request for <strong>${escapeHtml(String(booking.event_name))}</strong> on ${formatDate(booking.start_time as string)} has been approved.</p>
+           <p>Next steps: upload your certificate of insurance (if required) and complete payment to confirm your date.</p>`,
+          { label: 'View your booking', url: bookingUrl },
+        ),
+      });
+    }
   } else if (action === 'deny') {
     await notify(env, booking.renter_id as string, {
       title: 'Booking update',
       body: `Your request for ${booking.event_name} couldn't be confirmed.`,
       action_url: `/renter/bookings/${bookingId}`,
     });
+    if (renter?.email) {
+      await sendEmail(env, {
+        to: renter.email,
+        subject: `Update on your booking request: ${booking.event_name}`,
+        html: emailLayout(
+          'Update on your request',
+          `<p>Thank you for your interest in hosting <strong>${escapeHtml(String(booking.event_name))}</strong>. Unfortunately we weren't able to confirm this booking.</p>
+           ${body.reason ? `<p><em>${escapeHtml(body.reason)}</em></p>` : ''}
+           <p>We'd be glad to help you find another time or space that works.</p>`,
+          { label: 'Browse spaces', url: `${env.APP_URL || ''}/renter` },
+        ),
+      });
+    }
+  } else if (action === 'cancel') {
+    // Let the other party know about a cancellation.
+    if (renter?.email) {
+      await sendEmail(env, {
+        to: renter.email,
+        subject: `Booking cancelled: ${booking.event_name}`,
+        html: emailLayout('Your booking was cancelled', `<p>Your booking for <strong>${escapeHtml(String(booking.event_name))}</strong> on ${formatDate(booking.start_time as string)} has been cancelled.${body.reason ? ` Reason: ${escapeHtml(body.reason)}` : ''}</p>`),
+      });
+    }
   }
 
   const saved = await getBooking(env, bookingId);

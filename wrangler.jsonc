@@ -23,7 +23,7 @@
     {
       "binding": "DB",
       "database_name": "sanctum",
-      "database_id": "PLACEHOLDER_D1_DATABASE_ID",
+      "database_id": "b7138764-b7c3-4cd8-929a-dea8d97ca734",
       "migrations_dir": "migrations"
     }
   ],

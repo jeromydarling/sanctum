@@ -4,7 +4,7 @@
  * (which would clobber the global directory).
  */
 import type { Env } from '../types.js';
-import { json, err } from '../http.js';
+import { json, err, readJson, genId, nowISO } from '../http.js';
 import { decodeRow } from '../db.js';
 import { TABLES } from '../schema.js';
 
@@ -71,6 +71,31 @@ export async function handleEventBySlug(env: Env, slug: string): Promise<Respons
   ).bind(slug).first<Record<string, unknown>>();
   if (!site) return err('Event page not found', 404);
   return json({ site: decodeRow(TABLES.event_microsites, site) });
+}
+
+/** POST /api/public/inquiry — public lead capture (creates a lead + notifies operator). */
+export async function handleInquiry(env: Env, req: Request): Promise<Response> {
+  const b = await readJson<{ facility_id?: string; name?: string; email?: string; organization?: string; message?: string; space_id?: string }>(req);
+  if (!b.facility_id || !b.name?.trim() || !b.message?.trim()) {
+    return err('Please include your name and a message', 422);
+  }
+  const facility = await env.DB.prepare('SELECT id, operator_id, name FROM facilities WHERE id = ? AND is_listed = 1')
+    .bind(b.facility_id)
+    .first<{ id: string; operator_id: string; name: string }>();
+  if (!facility) return err('Facility not found', 404);
+
+  const ts = nowISO();
+  await env.DB.prepare(
+    `INSERT INTO leads (id, facility_id, name, email, organization, message, space_id, stage, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'inquiry', ?, ?)`,
+  ).bind(genId('lead'), b.facility_id, b.name.trim(), b.email || null, b.organization || null, b.message.trim(), b.space_id || null, ts, ts).run();
+
+  await env.DB.prepare(
+    `INSERT INTO notifications (id, user_id, title, body, type, is_read, action_url, created_at, updated_at)
+     VALUES (?, ?, 'New inquiry', ?, 'lead', 0, '/operator/leads', ?, ?)`,
+  ).bind(genId('ntf'), facility.operator_id, `${b.name} asked about your spaces.`, ts, ts).run();
+
+  return json({ ok: true });
 }
 
 function publicFacility(

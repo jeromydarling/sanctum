@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-cream text-ink font-sans antialiased;
+  margin: 0;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: 'Playfair Display', Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+/* Numbers in mono for a precise, trustworthy feel. */
+.tabular {
+  @apply font-mono tabular-nums;
+}
+
+@layer components {
+  .container-x {
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-8;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-card font-semibold transition
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50
+      disabled:pointer-events-none;
+  }
+  .card {
+    @apply rounded-card bg-white shadow-card border border-black/5;
+  }
+  .input-base {
+    @apply w-full rounded-card border border-black/10 bg-white px-3.5 py-2.5 text-sm text-ink
+      placeholder:text-stone-warm/70 focus:outline-none focus:ring-2 focus:ring-primary/30
+      focus:border-primary/40 transition;
+  }
+  .link-underline {
+    @apply relative after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-current
+      after:transition-all hover:after:w-full;
+  }
+}
+
+/* Animated marketing gradient mesh. */
+.mesh-gradient {
+  background:
+    radial-gradient(at 20% 20%, rgba(99, 80, 238, 0.18) 0, transparent 50%),
+    radial-gradient(at 80% 10%, rgba(201, 168, 76, 0.16) 0, transparent 45%),
+    radial-gradient(at 70% 80%, rgba(67, 56, 202, 0.18) 0, transparent 50%),
+    radial-gradient(at 10% 90%, rgba(227, 200, 120, 0.12) 0, transparent 45%);
+}
+
+.text-gradient {
+  @apply bg-clip-text text-transparent;
+  background-image: linear-gradient(110deg, #4338ca, #5b50ee 35%, #c9a84c);
+  background-size: 200% auto;
+}
+
+.animate-text-gradient {
+  @apply text-gradient;
+  animation: gradient-pan 8s ease infinite;
+}
+
+/* Skeleton shimmer. */
+.skeleton {
+  @apply relative overflow-hidden bg-black/5;
+}
+.skeleton::after {
+  @apply absolute inset-0 -translate-x-full;
+  content: '';
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+::selection {
+  background: rgba(67, 56, 202, 0.16);
+}

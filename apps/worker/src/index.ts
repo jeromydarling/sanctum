@@ -10,11 +10,12 @@ import { handleSignup, handleLogin, handleMe } from './routes/auth.js';
 import { handleUpsert, handleDelete, handleHydrate } from './routes/data.js';
 import { handleCreateBooking, handleBookingStatus } from './routes/bookings.js';
 import { handleCreateInvoice, handleInvoiceAction } from './routes/invoices.js';
-import { handleDiscover, handleFacilityBySlug, handleEventBySlug } from './routes/public.js';
+import { handleDiscover, handleFacilityBySlug, handleEventBySlug, handleInquiry } from './routes/public.js';
 import { handleAITool, handleAIImage } from './routes/ai.js';
 import { handleUpload, handleFileServe } from './routes/files.js';
 import { handleTelemetry, handleExport, handleDeleteAccount } from './routes/misc.js';
 import { handleConnectAccount, handleCheckout, handleWebhook } from './routes/stripe.js';
+import { handleAdminErrors } from './routes/admin.js';
 import { runScheduled } from './scheduled.js';
 
 export default {
@@ -68,6 +69,7 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   if (path === '/api/auth/signup' && method === 'POST') return handleSignup(env, req);
   if (path === '/api/auth/login' && method === 'POST') return handleLogin(env, req);
   if (path === '/api/public/discover' && method === 'GET') return handleDiscover(env, url);
+  if (path === '/api/public/inquiry' && method === 'POST') return handleInquiry(env, req);
   if (seg[0] === 'public' && seg[1] === 'facility' && seg[2] && method === 'GET') {
     return handleFacilityBySlug(env, decodeURIComponent(seg.slice(2).join('/')));
   }
@@ -119,6 +121,9 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
       return handleInvoiceAction(env, req, auth, seg[1], action);
     }
   }
+
+  // Admin
+  if (path === '/api/admin/errors' && method === 'GET') return handleAdminErrors(env, auth);
 
   // Stripe (authenticated)
   if (path === '/api/stripe/connect/create-account' && method === 'POST') return handleConnectAccount(env, req, auth);

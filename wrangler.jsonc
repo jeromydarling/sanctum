@@ -46,9 +46,9 @@
   // Cloudflare Email Service — enabled. Outbound transactional email from sanctum.garden.
   "send_email": [
     { "name": "EMAIL" }
+  ],
+  // R2 file storage — bucket created.
+  "r2_buckets": [
+    { "binding": "STORAGE", "bucket_name": "sanctum-files" }
   ]
-  // R2 file storage — uncomment once the bucket "sanctum-files" exists in the dashboard.
-  // "r2_buckets": [
-  //   { "binding": "STORAGE", "bucket_name": "sanctum-files" }
-  // ]
 }

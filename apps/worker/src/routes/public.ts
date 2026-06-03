@@ -21,16 +21,19 @@ export async function handleDiscover(env: Env, url: URL): Promise<Response> {
 
   const facIds = facilities.map((f) => f.id as string);
   let spaces: Record<string, unknown>[] = [];
+  let rules: Record<string, unknown>[] = [];
   if (facIds.length) {
     const ph = facIds.map(() => '?').join(',');
     const res = await env.DB.prepare(
       `SELECT * FROM spaces WHERE is_active = 1 AND facility_id IN (${ph})`,
     ).bind(...facIds).all<Record<string, unknown>>();
     spaces = (res.results || []).map((s) => decodeRow(TABLES.spaces, s));
+    const rres = await env.DB.prepare(`SELECT * FROM pricing_rules WHERE facility_id IN (${ph})`).bind(...facIds).all<Record<string, unknown>>();
+    rules = rres.results || [];
   }
 
   const out = facilities
-    .map((f) => publicFacility(f, spaces.filter((s) => s.facility_id === f.id)))
+    .map((f) => publicFacility(f, spaces.filter((s) => s.facility_id === f.id), rules.filter((r) => r.facility_id === f.id)))
     .filter((f) => {
       if (city && !String(f.city).toLowerCase().includes(city)) return false;
       if (state && !String(f.state).toLowerCase().includes(state)) return false;
@@ -54,12 +57,14 @@ export async function handleFacilityBySlug(env: Env, slug: string): Promise<Resp
   ).bind(facility.id).all<Record<string, unknown>>();
   const spaces = (spacesRes.results || []).map((s) => decodeRow(TABLES.spaces, s));
 
+  const rulesRes = await env.DB.prepare('SELECT * FROM pricing_rules WHERE facility_id = ?').bind(facility.id).all<Record<string, unknown>>();
+
   const reviewsRes = await env.DB.prepare(
     'SELECT id, rating, headline, body, operator_response, created_at FROM reviews WHERE facility_id = ? AND is_published = 1 ORDER BY created_at DESC LIMIT 20',
   ).bind(facility.id).all<Record<string, unknown>>();
 
   return json({
-    facility: publicFacility(facility, spaces),
+    facility: publicFacility(facility, spaces, rulesRes.results || []),
     reviews: reviewsRes.results || [],
   });
 }
@@ -101,6 +106,7 @@ export async function handleInquiry(env: Env, req: Request): Promise<Response> {
 function publicFacility(
   f: Record<string, unknown>,
   spaces: Record<string, unknown>[],
+  pricingRules: Record<string, unknown>[] = [],
 ): Record<string, unknown> & { spaces: Record<string, unknown>[] } {
   return {
     id: f.id,
@@ -118,5 +124,6 @@ function publicFacility(
     logo_url: f.logo_url,
     cover_image_url: f.cover_image_url,
     spaces,
+    pricing_rules: pricingRules.map((r) => ({ org_type: r.org_type, discount_percent: r.discount_percent })),
   };
 }

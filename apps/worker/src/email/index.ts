@@ -1,4 +1,8 @@
-/** Resend transactional email. No-op (logs only) when RESEND_API_KEY is absent. */
+/**
+ * Transactional email via Cloudflare Email Service (env.EMAIL.send).
+ * 100% Cloudflare — no third-party provider. No-op (logs only) until the
+ * Email Sending binding is enabled, so nothing breaks when unconfigured.
+ */
 import type { Env } from '../types.js';
 
 export interface EmailMessage {
@@ -9,30 +13,19 @@ export interface EmailMessage {
 }
 
 export async function sendEmail(env: Env, msg: EmailMessage): Promise<{ sent: boolean; demo?: boolean }> {
-  const from = env.RESEND_FROM_EMAIL || 'Sanctum <hello@sanctum.app>';
-  if (!env.RESEND_API_KEY) {
+  const from = env.EMAIL_FROM || 'Sanctum <hello@sanctum.garden>';
+  if (!env.EMAIL) {
     console.log(`[email:noop] to=${msg.to} subject="${msg.subject}"`);
     return { sent: false, demo: true };
   }
   try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from,
-        to: [msg.to],
-        subject: msg.subject,
-        html: msg.html,
-        text: msg.text || stripHtml(msg.html),
-      }),
+    await env.EMAIL.send({
+      to: msg.to,
+      from,
+      subject: msg.subject,
+      html: msg.html,
+      text: msg.text || stripHtml(msg.html),
     });
-    if (!res.ok) {
-      console.error(`[email:error] ${res.status} ${await res.text()}`);
-      return { sent: false };
-    }
     return { sent: true };
   } catch (e) {
     console.error('[email:exception]', e);

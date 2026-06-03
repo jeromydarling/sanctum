@@ -252,6 +252,15 @@ export interface AvailabilityBlock {
   updated_at: ISODate;
 }
 
+export interface PricingRule {
+  id: string;
+  facility_id: string;
+  org_type: OrgType;
+  discount_percent: number;
+  created_at: ISODate;
+  updated_at: ISODate;
+}
+
 /** Tables routed through the generic write-through upsert. */
 export type GenericTable =
   | 'profiles'
@@ -263,7 +272,8 @@ export type GenericTable =
   | 'leads'
   | 'notifications'
   | 'event_microsites'
-  | 'availability_blocks';
+  | 'availability_blocks'
+  | 'pricing_rules';
 
 /** Tables that bypass the generic upsert (money/conflict-sensitive). */
 export type ProtectedTable = 'bookings' | 'invoices';

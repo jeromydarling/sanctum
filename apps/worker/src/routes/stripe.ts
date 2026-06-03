@@ -102,6 +102,42 @@ export async function handleCheckout(env: Env, req: Request, auth: AuthContext):
   return json({ url: session.url });
 }
 
+/** POST /api/stripe/subscribe { facility_id, plan } — Sanctum bills the operator. */
+export async function handleSubscribe(env: Env, req: Request, auth: AuthContext): Promise<Response> {
+  const { facility_id, plan } = await readJson<{ facility_id?: string; plan?: string }>(req);
+  if (!facility_id || !plan) return err('facility_id and plan are required', 422);
+  if (!(await operatesFacility(env, auth.id, facility_id)) && auth.role !== 'admin') {
+    return err('Only the facility operator can change the plan', 403);
+  }
+  const prices: Record<string, number> = { starter: 900, growth: 1900, pro: 2900 };
+  const amount = prices[plan];
+  if (!amount) return err('Unknown plan', 422);
+
+  if (!env.STRIPE_SECRET_KEY) {
+    // Simulate the subscription so the demo/non-configured flow completes.
+    await env.DB.prepare('UPDATE facilities SET plan = ?, subscription_status = ?, updated_at = ? WHERE id = ?')
+      .bind(plan, 'active', nowISO(), facility_id).run();
+    return json({ demo: true, plan, status: 'active' });
+  }
+
+  const base = env.APP_URL || '';
+  const session = await stripeCall(env, '/checkout/sessions', {
+    mode: 'subscription',
+    'line_items[0][price_data][currency]': 'usd',
+    'line_items[0][price_data][product_data][name]': `Sanctum ${plan} plan`,
+    'line_items[0][price_data][unit_amount]': amount,
+    'line_items[0][price_data][recurring][interval]': 'month',
+    'line_items[0][quantity]': 1,
+    'subscription_data[trial_period_days]': 30,
+    client_reference_id: facility_id,
+    'metadata[kind]': 'subscription',
+    'metadata[plan]': plan,
+    success_url: `${base}/operator/settings?subscribed=1`,
+    cancel_url: `${base}/operator/settings`,
+  });
+  return json({ url: session.url });
+}
+
 /** POST /api/stripe/webhooks — signature-verified. */
 export async function handleWebhook(env: Env, req: Request): Promise<Response> {
   const payload = await req.text();
@@ -125,6 +161,16 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
       break;
     }
     case 'checkout.session.completed': {
+      // Subscription checkout (Sanctum billing the operator).
+      if ((obj.metadata as Record<string, string>)?.kind === 'subscription') {
+        const facilityId = (obj.client_reference_id as string) || '';
+        const plan = (obj.metadata as Record<string, string>)?.plan;
+        if (facilityId && plan) {
+          await env.DB.prepare('UPDATE facilities SET plan = ?, subscription_status = ?, updated_at = ? WHERE id = ?')
+            .bind(plan, 'active', nowISO(), facilityId).run();
+        }
+        break;
+      }
       const bookingId = (obj.client_reference_id as string) || '';
       if (bookingId) {
         await env.DB.prepare('UPDATE bookings SET status = ?, balance_paid_at = ?, updated_at = ? WHERE id = ?')

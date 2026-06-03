@@ -36,15 +36,25 @@
   },
   "vars": {
     "PLATFORM_FEE_PERCENT": "1.5",
-    "RESEND_FROM_EMAIL": "Sanctum <hello@sanctum.garden>",
+    "EMAIL_FROM": "Sanctum <hello@sanctum.garden>",
     "APP_URL": "https://sanctum.garden"
   }
-  // R2 and Cloudflare Images are enabled from the dashboard. Kept commented until then;
-  // the Worker degrades gracefully when STORAGE / IMAGES bindings are absent.
+  // The following are enabled from the dashboard. Kept commented until then; the
+  // Worker degrades gracefully when STORAGE / IMAGES / EMAIL bindings are absent.
+  //
+  // R2 file storage (bucket: sanctum-files):
   // "r2_buckets": [
   //   { "binding": "STORAGE", "bucket_name": "sanctum-files" }
   // ],
+  //
+  // Cloudflare Images:
   // "images": {
   //   "binding": "IMAGES"
-  // }
+  // },
+  //
+  // Cloudflare Email Service — outbound transactional email from sanctum.garden,
+  // no third-party provider. Enable Email Sending + verify the domain first.
+  // "send_email": [
+  //   { "name": "EMAIL" }
+  // ]
 }

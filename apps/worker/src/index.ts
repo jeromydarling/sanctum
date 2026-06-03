@@ -14,7 +14,7 @@ import { handleDiscover, handleFacilityBySlug, handleEventBySlug, handleInquiry 
 import { handleAITool, handleAIImage } from './routes/ai.js';
 import { handleUpload, handleFileServe } from './routes/files.js';
 import { handleTelemetry, handleExport, handleDeleteAccount } from './routes/misc.js';
-import { handleConnectAccount, handleCheckout, handleWebhook } from './routes/stripe.js';
+import { handleConnectAccount, handleCheckout, handleWebhook, handleSubscribe } from './routes/stripe.js';
 import { handleAdminErrors, handleAdminAnnounce } from './routes/admin.js';
 import { runScheduled } from './scheduled.js';
 
@@ -129,6 +129,7 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   // Stripe (authenticated)
   if (path === '/api/stripe/connect/create-account' && method === 'POST') return handleConnectAccount(env, req, auth);
   if (path === '/api/stripe/checkout' && method === 'POST') return handleCheckout(env, req, auth);
+  if (path === '/api/stripe/subscribe' && method === 'POST') return handleSubscribe(env, req, auth);
 
   return err('Not found', 404);
 }

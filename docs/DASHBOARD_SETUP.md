@@ -30,20 +30,34 @@ Until enabled, uploads fall back to keeping the local data URL — nothing break
 3. Commit + push. `/api/files/:key?w=N` will then serve resized WebP; without it, the
    original object is served as-is.
 
-## 3. Set Worker secrets (Settings → Variables and Secrets → Encrypt)
+## 3. Enable Cloudflare Email Service (native domain email — no third party)
 
-On the **sanctum** Worker, add these as **encrypted** secrets:
+Sanctum sends transactional email via Cloudflare's own Email Service (`env.EMAIL.send`),
+**not Resend**. To turn it on:
+
+1. Dashboard → **sanctum.garden** zone → **Email** → enable **Email Routing**, then
+   **Email Sending** (Cloudflare Email Service). Verify the domain's email DNS records
+   (Cloudflare adds the SPF/DKIM/MX records for you on a Cloudflare-managed zone).
+2. In `wrangler.jsonc`, uncomment the `send_email` binding:
+   ```jsonc
+   "send_email": [{ "name": "EMAIL" }]
+   ```
+3. Commit + push. Emails then send from `hello@sanctum.garden`. Until enabled, email
+   calls no-op (logged only) so nothing breaks.
+
+## 4. Set Worker secrets (Settings → Variables and Secrets → Encrypt)
+
+Only Stripe needs a key now — AI is Workers AI and email is Cloudflare Email Service.
 
 | Secret                  | Where it's used                         | Required? |
 |-------------------------|-----------------------------------------|-----------|
-| `STRIPE_SECRET_KEY`     | Stripe Connect payments (use **test** key first) | for real payments |
+| `STRIPE_SECRET_KEY`     | Payments + subscriptions (use **test** key first) | for real payments |
 | `STRIPE_WEBHOOK_SECRET` | Verifies Stripe webhook signatures      | for real payments |
-| `ANTHROPIC_API_KEY`     | AI text tools (else Workers AI/demo)    | optional  |
-| `RESEND_API_KEY`        | Transactional email (else no-op)        | optional  |
 
 `AUTH_SECRET` is **not** needed — it auto-generates into the D1 `app_secrets` table.
+There is **no** Anthropic or Resend key — those third parties were removed.
 
-After Stripe is live, add the webhook endpoint `https://<your-domain>/api/stripe/webhooks`
+After Stripe is live, add the webhook endpoint `https://sanctum.garden/api/stripe/webhooks`
 subscribed to `account.updated`, `checkout.session.completed`, and
 `payment_intent.payment_failed`.
 
@@ -52,9 +66,10 @@ subscribed to `account.updated`, `checkout.session.completed`, and
 ## Claude-for-Chrome prompt (paste into Claude for Chrome with the dashboard open)
 
 ```
-You are helping me configure the Cloudflare dashboard for my Worker named "sanctum".
-Work in TEST mode first. As you go, read back only the LAST 4 CHARACTERS of any secret
-value — never the full value — and never type a secret into any chat.
+You are helping me configure the Cloudflare dashboard for my Worker "sanctum" on the
+domain sanctum.garden. Everything here is Cloudflare-native — no Resend, no Anthropic.
+Work in TEST mode for Stripe. Read back only the LAST 4 CHARACTERS of any secret value —
+never the full value — and never type a secret into any chat.
 
 Do these in order, pausing for me to confirm before each "Save":
 
@@ -62,23 +77,23 @@ Do these in order, pausing for me to confirm before each "Save":
 
 2. Images: Go to Images and enable the product if it isn't already.
 
-3. Worker secrets: Go to Workers & Pages → "sanctum" → Settings → Variables and Secrets.
+3. Email: Go to the sanctum.garden zone → Email. Enable Email Routing, then enable
+   Email Sending (Cloudflare Email Service). Add/verify the email DNS records it suggests.
+
+4. Worker secrets: Go to Workers & Pages → "sanctum" → Settings → Variables and Secrets.
    Add these as ENCRYPTED secrets (I will paste each value myself):
      - STRIPE_SECRET_KEY        (my Stripe TEST secret key, starts with sk_test_)
-     - STRIPE_WEBHOOK_SECRET    (from the webhook I create in step 4, starts with whsec_)
-     - ANTHROPIC_API_KEY        (optional)
-     - RESEND_API_KEY           (optional)
+     - STRIPE_WEBHOOK_SECRET    (from the webhook I create in step 5, starts with whsec_)
    Do NOT add AUTH_SECRET — the app generates it itself.
 
-4. Stripe webhook: In the Stripe dashboard (test mode) → Developers → Webhooks → add an
-   endpoint at https://<MY_WORKER_DOMAIN>/api/stripe/webhooks, subscribed to:
+5. Stripe webhook: In the Stripe dashboard (test mode) → Developers → Webhooks → add an
+   endpoint at https://sanctum.garden/api/stripe/webhooks, subscribed to:
    account.updated, checkout.session.completed, payment_intent.payment_failed.
    Copy the signing secret (whsec_…) and use it for STRIPE_WEBHOOK_SECRET above.
 
-5. Verify the Resend "from" domain (hello@sanctum.app) under Resend → Domains if I plan
-   to send real email.
-
 After each step, tell me what changed and the last 4 characters of any secret I entered.
+Remind me to uncomment the r2_buckets, images, and send_email bindings in wrangler.jsonc
+and push, so the bindings attach on the next deploy.
 ```
 
 ---
@@ -87,6 +102,5 @@ After each step, tell me what changed and the last 4 characters of any secret I 
 
 - Public facility-profile by-slug endpoint — **done** (`/api/public/facility/:slug`).
 - `payment_intent.payment_failed` → notify operator — **done**.
-- Verify the Resend "from" domain — dashboard step above.
-- Custom-domain setup prompt — add the domain under Workers → Custom Domains, then set
-  the Worker `APP_URL` var to the production URL.
+- Email now uses Cloudflare Email Service — enable it per step 3 above.
+- Custom domain — **done** (sanctum.garden; `APP_URL` set).

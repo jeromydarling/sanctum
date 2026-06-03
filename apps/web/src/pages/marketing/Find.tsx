@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Search, MapPin, Users2, SlidersHorizontal } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Search, MapPin, Users2, SlidersHorizontal, List, Map as MapIcon } from 'lucide-react';
 import { MarketingNav } from '../../components/marketing/MarketingNav.js';
 import { Footer, MarketingShell } from '../../components/marketing/Footer.js';
 import { SmartImage } from '../../components/SmartImage.js';
+import { UsMap } from '../../components/UsMap.js';
 import { Button, Card, Input, Select, Badge, Skeleton, EmptyState } from '../../components/ui.js';
 import { api } from '../../lib/api.js';
+import { cn } from '../../lib/cn.js';
 import { formatCents, SPACE_TYPES, SPACE_TYPE_LABELS, SPACE_TYPE_EMOJI, type SpaceType } from '@sanctum/shared';
 
 interface PublicSpace {
@@ -18,11 +20,13 @@ interface PublicFacility {
 }
 
 export default function Find() {
+  const navigate = useNavigate();
   const [facilities, setFacilities] = useState<PublicFacility[] | null>(null);
   const [city, setCity] = useState('');
   const [type, setType] = useState('');
   const [capacity, setCapacity] = useState('');
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<'list' | 'map'>('list');
 
   async function load() {
     setLoading(true);
@@ -70,6 +74,23 @@ export default function Find() {
       </section>
 
       <section className="container-x py-12">
+        {!loading && !!facilities?.length && (
+          <div className="mb-5 flex items-center justify-between">
+            <p className="text-sm text-stone-warm">{facilities.length} communit{facilities.length === 1 ? 'y' : 'ies'} · {facilities.reduce((n, f) => n + f.spaces.length, 0)} spaces</p>
+            <div className="inline-flex rounded-card border border-black/10 bg-white p-1">
+              {(['list', 'map'] as const).map((v) => (
+                <button key={v} onClick={() => setView(v)} className={cn('flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-sm font-medium capitalize', view === v ? 'bg-primary text-white' : 'text-ink/70')}>
+                  {v === 'list' ? <List className="h-4 w-4" /> : <MapIcon className="h-4 w-4" />} {v}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {!loading && view === 'map' && !!facilities?.length && (
+          <div className="mb-8">
+            <UsMap pins={facilities.map((f) => ({ id: f.id, state: f.state, label: `${f.name} · ${f.city}, ${f.state}`, count: f.spaces.length, onClick: () => navigate(`/c/${f.slug}`) }))} />
+          </div>
+        )}
         {loading ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-72" />)}
@@ -81,7 +102,7 @@ export default function Find() {
             body="Try widening your search, or check back soon — new communities are opening their doors all the time."
             action={<Button variant="outline" onClick={() => { setCity(''); setType(''); setCapacity(''); load(); }}>Clear filters</Button>}
           />
-        ) : (
+        ) : view === 'map' ? null : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {facilities.flatMap((f) =>
               f.spaces.map((s) => (

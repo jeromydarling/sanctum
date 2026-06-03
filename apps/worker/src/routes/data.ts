@@ -74,6 +74,7 @@ export async function handleHydrate(env: Env, auth: AuthContext): Promise<Respon
     notifications: [],
     event_microsites: [],
     availability_blocks: [],
+    pricing_rules: [],
   };
 
   // Own profile + notifications always.
@@ -103,6 +104,7 @@ export async function handleHydrate(env: Env, auth: AuthContext): Promise<Respon
       out.compliance_docs = await selectAll(env, 'compliance_docs', `facility_id IN (${ph})`, facIds);
       out.event_microsites = await selectAll(env, 'event_microsites', `facility_id IN (${ph})`, facIds);
       out.availability_blocks = await selectAll(env, 'availability_blocks', `facility_id IN (${ph})`, facIds);
+      out.pricing_rules = await selectAll(env, 'pricing_rules', `facility_id IN (${ph})`, facIds);
       out.bookings = await raw(env, 'bookings', `facility_id IN (${ph})`, facIds);
       out.invoices = await raw(env, 'invoices', `facility_id IN (${ph})`, facIds);
     }

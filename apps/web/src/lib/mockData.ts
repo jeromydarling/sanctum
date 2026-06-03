@@ -5,7 +5,7 @@
  */
 import type {
   Profile, Facility, Space, Resource, Booking, ComplianceDoc,
-  Invoice, Review, Lead, Notification, EventMicrosite, AvailabilityBlock,
+  Invoice, Review, Lead, Notification, EventMicrosite, AvailabilityBlock, PricingRule,
 } from '@sanctum/shared';
 
 export interface StoreData {
@@ -21,6 +21,7 @@ export interface StoreData {
   notifications: Notification[];
   event_microsites: EventMicrosite[];
   availability_blocks: AvailabilityBlock[];
+  pricing_rules: PricingRule[];
 }
 
 const NOW = '2026-06-01T12:00:00.000Z';
@@ -160,10 +161,15 @@ export function freshStore(): StoreData {
     is_published: 1, rsvp_enabled: 1, created_at: NOW, updated_at: NOW,
   }];
 
+  const pricing_rules: PricingRule[] = [
+    { id: 'pr-nonprofit', facility_id: FAC, org_type: 'nonprofit', discount_percent: 25, created_at: NOW, updated_at: NOW },
+    { id: 'pr-school', facility_id: FAC, org_type: 'school', discount_percent: 10, created_at: NOW, updated_at: NOW },
+  ];
+
   return {
     profiles, facilities: [facility], spaces, resources, bookings,
     compliance_docs, invoices, reviews, leads, notifications, event_microsites,
-    availability_blocks: [],
+    availability_blocks: [], pricing_rules,
   };
 }
 

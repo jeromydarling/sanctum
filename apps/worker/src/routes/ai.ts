@@ -1,13 +1,14 @@
 /**
- * AI proxy. Text tools prefer Anthropic (if ANTHROPIC_API_KEY present), else
- * Workers AI, else signal demo. Image generation uses Flux via the AI binding.
- * All calls are metered in D1 to cap spend.
+ * AI proxy — 100% Cloudflare Workers AI. Text tools run a Llama instruct model
+ * (with a fast fallback), image generation uses Flux via the AI binding, and all
+ * calls are metered in D1 to cap spend. Returns {demo:true} when AI is absent.
  */
 import { AI_DAILY_LIMIT_PER_USER, AI_DAILY_LIMIT_PER_IP } from '@sanctum/shared';
 import type { Env, AuthContext } from '../types.js';
 import { json, err, readJson, genId, clientIP } from '../http.js';
 
-const TEXT_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+const TEXT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+const TEXT_MODEL_FALLBACK = '@cf/meta/llama-3.1-8b-instruct-fast';
 const FLUX_MODEL = '@cf/black-forest-labs/flux-1-schnell';
 
 interface ToolDef {
@@ -78,33 +79,33 @@ export async function handleAITool(
   const input = await readJson<Record<string, unknown>>(req);
   const prompt = def.build(input);
 
-  // Prefer Anthropic if configured.
-  if (env.ANTHROPIC_API_KEY) {
-    try {
-      const text = await anthropic(env, def.system, prompt);
-      if (text?.trim()) return json({ text });
-    } catch (e) {
-      console.error('[ai:anthropic]', e);
-    }
-  }
-
-  // Fall back to Workers AI.
+  // 100% Cloudflare Workers AI (primary model, with a fast fallback on error).
   if (env.AI) {
-    try {
-      const res = (await env.AI.run(TEXT_MODEL, {
-        messages: [
-          { role: 'system', content: def.system },
-          { role: 'user', content: prompt },
-        ],
-      })) as { response?: string };
-      const text = res.response?.trim();
-      if (text) return json({ text });
-    } catch (e) {
-      console.error('[ai:workers]', e);
-    }
+    const text = await runText(env, def.system, prompt);
+    if (text) return json({ text });
   }
 
   return json({ demo: true });
+}
+
+/** Run a Workers AI chat model; tries the primary model then a fast fallback. */
+async function runText(env: Env, system: string, prompt: string): Promise<string | null> {
+  for (const model of [TEXT_MODEL, TEXT_MODEL_FALLBACK]) {
+    try {
+      const res = (await env.AI!.run(model, {
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: prompt },
+        ],
+        max_tokens: 1024,
+      })) as { response?: string };
+      const text = res.response?.trim();
+      if (text) return text;
+    } catch (e) {
+      console.error(`[ai:workers:${model}]`, e);
+    }
+  }
+  return null;
 }
 
 /** POST /api/ai/image { prompt } -> Flux image (facilities/spaces only, no people). */
@@ -137,25 +138,6 @@ export async function handleAIImage(
   }
 }
 
-async function anthropic(env: Env, system: string, prompt: string): Promise<string> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': env.ANTHROPIC_API_KEY as string,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 1500,
-      system,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
-  if (!res.ok) throw new Error(`anthropic ${res.status}`);
-  const data = (await res.json()) as { content?: { text?: string }[] };
-  return data.content?.map((c) => c.text || '').join('') || '';
-}
 
 async function meter(
   env: Env,

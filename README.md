@@ -36,6 +36,10 @@ sanctum/
 - **Auth** — Worker-issued JWT (HS256, Web Crypto) + PBKDF2 passwords (100k, SHA-256).
   `AUTH_SECRET` resolves from a Worker secret **or** auto-generates into a D1 `app_secrets`
   table — auth is never blocked on a manually-set secret.
+- **All-Cloudflare** — D1 (database), R2 (files), Cloudflare Images (transforms),
+  Workers AI (Llama 3.3 70B text + Flux images), and Cloudflare Email Service
+  (`env.EMAIL.send`) for transactional email. The only external dependency is Stripe
+  for payments — there is no Anthropic or Resend.
 
 ## Demo + Live
 

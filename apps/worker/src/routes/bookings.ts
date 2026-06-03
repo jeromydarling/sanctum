@@ -76,6 +76,18 @@ export async function handleCreateBooking(
   const resourceIds = Array.isArray(body.resource_ids) ? body.resource_ids : [];
   const resourceFeesCents = await computeResourceFees(env, facility_id, resourceIds, minutes);
 
+  // Apply an automatic discount from the facility's pricing rules based on the
+  // renter's organization type (e.g. nonprofit 25%, school 10%).
+  const renterProfile = await env.DB.prepare('SELECT organization_type FROM profiles WHERE id = ?')
+    .bind(auth.id).first<{ organization_type: string | null }>();
+  let discountPercent = clampDiscount(body.discount_percent);
+  if (renterProfile?.organization_type) {
+    const rule = await env.DB.prepare(
+      'SELECT discount_percent FROM pricing_rules WHERE facility_id = ? AND org_type = ?',
+    ).bind(facility_id, renterProfile.organization_type).first<{ discount_percent: number }>();
+    if (rule) discountPercent = Math.max(discountPercent, clampDiscount(rule.discount_percent));
+  }
+
   const isWeekend = [0, 6].includes(new Date(start_time).getUTCDay());
   const feePercent = parseFloat(env.PLATFORM_FEE_PERCENT || '1.5');
   const price = computeBookingPrice({
@@ -87,7 +99,7 @@ export async function handleCreateBooking(
     weekendHourlyRateCents: space.weekend_hourly_rate_cents as number | null,
     resourceFeesCents,
     depositCents: Number(space.deposit_amount_cents || 0),
-    discountPercent: clampDiscount(body.discount_percent),
+    discountPercent,
     isWeekend,
     platformFeePercent: feePercent,
   });

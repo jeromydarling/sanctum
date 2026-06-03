@@ -6,6 +6,7 @@ import { Card, CardBody, Button, Input, Textarea, Badge, Spinner, EmptyState } f
 import { SmartImage } from '../../components/SmartImage.js';
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../lib/auth.js';
+import { useStore } from '../../lib/store.js';
 import { createBooking } from '../../lib/actions.js';
 import { notifyError } from '../../lib/errors.js';
 import {
@@ -19,12 +20,14 @@ interface Space {
   hourly_rate_cents: number; half_day_rate_cents: number | null; full_day_rate_cents: number | null;
   weekend_hourly_rate_cents: number | null; deposit_amount_cents: number; images: string[]; amenities: string[]; buffer_minutes: number;
 }
-interface Facility { id: string; name: string; slug: string; spaces: Space[]; require_coi?: number; }
+interface PricingRule { org_type: string; discount_percent: number; }
+interface Facility { id: string; name: string; slug: string; spaces: Space[]; require_coi?: number; pricing_rules?: PricingRule[]; }
 
 export default function BookingFlow() {
   const { facilityId, spaceId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const myOrgType = useStore((d) => d.profiles.find((p) => p.id === user?.id)?.organization_type || null);
   const [facility, setFacility] = useState<Facility | null>(null);
   const [space, setSpace] = useState<Space | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,15 +53,20 @@ export default function BookingFlow() {
   const startISO = form.date ? new Date(`${form.date}T${form.start}:00`).toISOString() : '';
   const endISO = form.date ? new Date(`${form.date}T${form.end}:00`).toISOString() : '';
 
+  const discountPercent = myOrgType
+    ? facility?.pricing_rules?.find((r) => r.org_type === myOrgType)?.discount_percent || 0
+    : 0;
+
   const price = useMemo(() => {
     if (!space || !startISO || !endISO) return null;
     const isWeekend = [0, 6].includes(new Date(startISO).getUTCDay());
     return computeBookingPrice({
       startTime: startISO, endTime: endISO, hourlyRateCents: space.hourly_rate_cents,
       halfDayRateCents: space.half_day_rate_cents, fullDayRateCents: space.full_day_rate_cents,
-      weekendHourlyRateCents: space.weekend_hourly_rate_cents, depositCents: space.deposit_amount_cents, isWeekend,
+      weekendHourlyRateCents: space.weekend_hourly_rate_cents, depositCents: space.deposit_amount_cents,
+      discountPercent, isWeekend,
     });
-  }, [space, startISO, endISO]);
+  }, [space, startISO, endISO, discountPercent]);
 
   if (loading) return <div className="flex min-h-screen items-center justify-center"><Spinner className="h-7 w-7" /></div>;
   if (!space || !facility) {
@@ -175,6 +183,7 @@ export default function BookingFlow() {
             <Card><CardBody className="space-y-2">
               <h3 className="font-semibold">Estimated price</h3>
               <Row label="Space" value={formatCents(price.spaceSubtotalCents)} />
+              {price.discountCents > 0 && <Row label={`Community discount (${discountPercent}%)`} value={`−${formatCents(price.discountCents)}`} />}
               {space.deposit_amount_cents > 0 && <Row label="Deposit (refundable)" value={formatCents(space.deposit_amount_cents)} />}
               <div className="border-t border-black/5 pt-2"><Row label="Total" value={formatCents(price.subtotalCents)} bold /></div>
               <Row label="Platform fee (1.5%)" value={formatCents(price.platformFeeCents)} muted />

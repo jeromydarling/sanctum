@@ -57,6 +57,16 @@ export default function Settings() {
     toast.success('Your data is downloading');
   }
 
+  async function choosePlan(p: import('@sanctum/shared').Plan) {
+    try {
+      const res = await api<{ url?: string; demo?: boolean }>('/stripe/subscribe', { body: { facility_id: facility!.id, plan: p } });
+      if (res.url) { window.location.href = res.url; return; }
+      set('plan', p);
+      await wt('facilities', { ...form!, plan: p, subscription_status: 'active' });
+      toast.success(`You're on ${PLAN_DETAILS[p].name}`);
+    } catch (e) { notifyError(e); }
+  }
+
   async function deleteAccount() {
     try {
       if (isLive()) await api('/account/delete', { body: {} });
@@ -117,7 +127,7 @@ export default function Settings() {
             const plan = PLAN_DETAILS[p];
             const current = form!.plan === p;
             return (
-              <button key={p} onClick={async () => { set('plan', p); await wt('facilities', { ...form!, plan: p }); toast.success(`You're on ${plan.name}`); }}
+              <button key={p} onClick={() => choosePlan(p)}
                 className={`rounded-card border-2 p-4 text-left transition ${current ? 'border-primary bg-primary-50' : 'border-black/10 hover:border-primary/30'}`}>
                 <div className="flex items-center justify-between"><span className="font-display font-bold">{plan.name}</span>{current && <Badge tone="primary">Current</Badge>}</div>
                 <div className="tabular mt-1 text-2xl font-bold">{formatCents(plan.priceCents)}<span className="text-sm font-normal text-stone-warm">/mo</span></div>

@@ -5,16 +5,27 @@ export interface Env {
   AI?: Ai;
   STORAGE?: R2Bucket;
   IMAGES?: ImagesBinding;
+  /** Cloudflare Email Service binding (env.EMAIL.send). Present once enabled. */
+  EMAIL?: SendEmailBinding;
   // Vars
   PLATFORM_FEE_PERCENT?: string;
-  RESEND_FROM_EMAIL?: string;
+  EMAIL_FROM?: string;
   APP_URL?: string;
   // Secrets (optional; degrade gracefully when absent)
   AUTH_SECRET?: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
-  ANTHROPIC_API_KEY?: string;
-  RESEND_API_KEY?: string;
+}
+
+/** Cloudflare Email Service binding surface (Email Sending). */
+export interface SendEmailBinding {
+  send(message: {
+    to: string;
+    from: string;
+    subject: string;
+    html?: string;
+    text?: string;
+  }): Promise<void>;
 }
 
 /** Minimal Images binding surface we use (optional). */

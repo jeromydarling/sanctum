@@ -80,13 +80,20 @@ export async function createBooking(input: NewBookingInput, renterId: string): P
     const r = d.resources.find((x) => x.id === rid);
     return sum + (r ? r.flat_rate_cents + Math.round(r.hourly_rate_cents * (minutes / 60)) : 0);
   }, 0);
+  // Automatic discount from the facility's pricing rules + renter org type.
+  const renterProfile = d.profiles.find((p) => p.id === renterId);
+  const rule = renterProfile?.organization_type
+    ? d.pricing_rules.find((r) => r.facility_id === input.facility_id && r.org_type === renterProfile.organization_type)
+    : undefined;
+  const discountPercent = rule?.discount_percent || 0;
+
   const isWeekend = [0, 6].includes(new Date(input.start_time).getUTCDay());
   const price = computeBookingPrice({
     startTime: input.start_time, endTime: input.end_time,
     hourlyRateCents: space.hourly_rate_cents || 0,
     halfDayRateCents: space.half_day_rate_cents, fullDayRateCents: space.full_day_rate_cents,
     weekendHourlyRateCents: space.weekend_hourly_rate_cents, resourceFeesCents: resourceFees,
-    depositCents: space.deposit_amount_cents, isWeekend,
+    depositCents: space.deposit_amount_cents, discountPercent, isWeekend,
   });
   const facility = d.facilities.find((f) => f.id === input.facility_id);
   const requiresApproval = facility ? facility.requires_approval === 1 : true;

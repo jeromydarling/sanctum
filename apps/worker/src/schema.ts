@@ -98,6 +98,12 @@ export const TABLES: Record<GenericTable, TableDef> = {
     ],
     jsonColumns: [],
   },
+  pricing_rules: {
+    columns: [
+      'id', 'facility_id', 'org_type', 'discount_percent', 'created_at', 'updated_at',
+    ],
+    jsonColumns: [],
+  },
 };
 
 export function isGenericTable(t: string): t is GenericTable {

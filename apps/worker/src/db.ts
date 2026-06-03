@@ -74,6 +74,7 @@ export async function canWrite(
     case 'spaces':
     case 'resources':
     case 'availability_blocks':
+    case 'pricing_rules':
       return operatesFacility(env, auth.id, row.facility_id as string);
     case 'event_microsites':
       return (

@@ -3,6 +3,7 @@ import { slugify, starterFacilityId, type Role } from '@sanctum/shared';
 import type { Env, AuthContext } from '../types.js';
 import { json, err, readJson, genId, nowISO } from '../http.js';
 import { hashPassword, verifyPassword, issueToken } from '../auth.js';
+import { sendEmail, emailLayout } from '../email/index.js';
 
 interface SignupBody {
   email?: string;
@@ -56,9 +57,81 @@ export async function handleSignup(env: Env, req: Request): Promise<Response> {
       .run();
   }
 
+  // Warm welcome email (best-effort).
+  await sendEmail(env, {
+    to: email,
+    subject: 'Welcome to Sanctum',
+    html: emailLayout(
+      'Welcome to Sanctum 🕊️',
+      role === 'operator'
+        ? `<p>Thank you for opening your doors. Your community space is set up and ready — add your spaces, set your rates, and connect payouts whenever you're ready.</p><p>Open doors. Stronger communities.</p>`
+        : `<p>Welcome! You can now discover welcoming community spaces and book the perfect place for your next gathering.</p>`,
+      { label: 'Go to your dashboard', url: `${env.APP_URL || ''}${role === 'operator' ? '/operator' : '/renter'}` },
+    ),
+  });
+
   const user: AuthContext = { id: userId, email, role, full_name: body.full_name || null };
   const token = await issueToken(env, user);
   return json({ token, user: { id: userId, email, role, full_name: body.full_name || null } });
+}
+
+async function sha256hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** POST /api/auth/forgot { email } — always returns ok (no account enumeration). */
+export async function handleForgotPassword(env: Env, req: Request): Promise<Response> {
+  const { email } = await readJson<{ email?: string }>(req);
+  const clean = (email || '').trim().toLowerCase();
+  if (!clean) return err('Email is required', 422);
+
+  const cred = await env.DB.prepare('SELECT user_id FROM auth_credentials WHERE email = ?')
+    .bind(clean).first<{ user_id: string }>();
+  if (cred) {
+    const rawToken = `${genId('rst')}.${crypto.randomUUID()}`;
+    const tokenHash = await sha256hex(rawToken);
+    const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+    await env.DB.prepare(
+      'INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES (?, ?, ?)',
+    ).bind(tokenHash, cred.user_id, expires).run();
+
+    const link = `${env.APP_URL || ''}/reset?token=${encodeURIComponent(rawToken)}`;
+    await sendEmail(env, {
+      to: clean,
+      subject: 'Reset your Sanctum password',
+      html: emailLayout(
+        'Reset your password',
+        `<p>We received a request to reset your Sanctum password. This link is valid for one hour.</p><p>If you didn't ask for this, you can safely ignore this email.</p>`,
+        { label: 'Choose a new password', url: link },
+      ),
+    });
+  }
+  return json({ ok: true });
+}
+
+/** POST /api/auth/reset { token, password } */
+export async function handleResetPassword(env: Env, req: Request): Promise<Response> {
+  const { token, password } = await readJson<{ token?: string; password?: string }>(req);
+  if (!token || !password) return err('Token and new password are required', 422);
+  if (password.length < 8) return err('Password must be at least 8 characters', 422);
+
+  const tokenHash = await sha256hex(token);
+  const row = await env.DB.prepare('SELECT user_id, expires_at FROM password_resets WHERE token_hash = ?')
+    .bind(tokenHash).first<{ user_id: string; expires_at: string }>();
+  if (!row) return err('This reset link is invalid or has already been used.', 400);
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    await env.DB.prepare('DELETE FROM password_resets WHERE token_hash = ?').bind(tokenHash).run();
+    return err('This reset link has expired. Please request a new one.', 400);
+  }
+
+  const { hash, salt } = await hashPassword(password);
+  await env.DB.batch([
+    env.DB.prepare('UPDATE auth_credentials SET password_hash = ?, password_salt = ? WHERE user_id = ?')
+      .bind(hash, salt, row.user_id),
+    env.DB.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(row.user_id),
+  ]);
+  return json({ ok: true });
 }
 
 export async function handleLogin(env: Env, req: Request): Promise<Response> {

@@ -138,6 +138,26 @@ export async function handleSubscribe(env: Env, req: Request, auth: AuthContext)
   return json({ url: session.url });
 }
 
+/** POST /api/stripe/portal { facility_id } — open the Stripe billing portal. */
+export async function handleBillingPortal(env: Env, req: Request, auth: AuthContext): Promise<Response> {
+  const { facility_id } = await readJson<{ facility_id?: string }>(req);
+  if (!facility_id) return err('facility_id is required', 422);
+  if (!(await operatesFacility(env, auth.id, facility_id)) && auth.role !== 'admin') {
+    return err('Not permitted', 403);
+  }
+  const facility = await env.DB.prepare('SELECT stripe_customer_id FROM facilities WHERE id = ?')
+    .bind(facility_id).first<{ stripe_customer_id: string | null }>();
+
+  if (!env.STRIPE_SECRET_KEY || !facility?.stripe_customer_id) {
+    return json({ demo: true, error: 'Billing management opens once you have an active paid subscription.' });
+  }
+  const session = await stripeCall(env, '/billing_portal/sessions', {
+    customer: facility.stripe_customer_id,
+    return_url: `${env.APP_URL || ''}/operator/settings`,
+  });
+  return json({ url: session.url });
+}
+
 /** POST /api/stripe/webhooks — signature-verified. */
 export async function handleWebhook(env: Env, req: Request): Promise<Response> {
   const payload = await req.text();
@@ -165,9 +185,10 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
       if ((obj.metadata as Record<string, string>)?.kind === 'subscription') {
         const facilityId = (obj.client_reference_id as string) || '';
         const plan = (obj.metadata as Record<string, string>)?.plan;
+        const customer = (obj.customer as string) || null;
         if (facilityId && plan) {
-          await env.DB.prepare('UPDATE facilities SET plan = ?, subscription_status = ?, updated_at = ? WHERE id = ?')
-            .bind(plan, 'active', nowISO(), facilityId).run();
+          await env.DB.prepare('UPDATE facilities SET plan = ?, subscription_status = ?, stripe_customer_id = COALESCE(?, stripe_customer_id), updated_at = ? WHERE id = ?')
+            .bind(plan, 'active', customer, nowISO(), facilityId).run();
         }
         break;
       }
@@ -194,6 +215,16 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
             });
           }
         }
+      }
+      break;
+    }
+    case 'customer.subscription.updated':
+    case 'customer.subscription.deleted': {
+      const customer = (obj.customer as string) || '';
+      const status = event.type === 'customer.subscription.deleted' ? 'canceled' : (obj.status as string) || 'active';
+      if (customer) {
+        await env.DB.prepare('UPDATE facilities SET subscription_status = ?, updated_at = ? WHERE stripe_customer_id = ?')
+          .bind(status, nowISO(), customer).run();
       }
       break;
     }

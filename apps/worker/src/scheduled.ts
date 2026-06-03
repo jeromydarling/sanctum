@@ -6,7 +6,82 @@ import { sendEmail, emailLayout } from './email/index.js';
 
 export async function runScheduled(env: Env): Promise<void> {
   await coiExpirySweep(env);
+  await eventReminders(env);
+  await reviewRequests(env);
   await monthlyAutoInvoicing(env);
+}
+
+/** Once-per-booking idempotency guard for reminders. Returns true if first time. */
+async function claimReminder(env: Env, bookingId: string, kind: string): Promise<boolean> {
+  const res = await env.DB.prepare(
+    'INSERT INTO reminder_log (id, booking_id, kind) VALUES (?, ?, ?) ON CONFLICT(booking_id, kind) DO NOTHING',
+  ).bind(genId('rem'), bookingId, kind).run();
+  return ((res.meta as { changes?: number } | undefined)?.changes ?? 0) > 0;
+}
+
+async function renterEmail(env: Env, renterId: string): Promise<string | null> {
+  const r = await env.DB.prepare('SELECT email FROM profiles WHERE id = ?').bind(renterId).first<{ email: string }>();
+  return r?.email || null;
+}
+
+/** Remind renters the day before their upcoming event. */
+async function eventReminders(env: Env): Promise<void> {
+  const now = new Date();
+  const windowEnd = new Date(now.getTime() + 36 * 3600 * 1000).toISOString();
+  const nowIso = now.toISOString();
+  const bookings = (
+    await env.DB.prepare(
+      `SELECT * FROM bookings WHERE status IN ('approved','confirmed') AND start_time > ? AND start_time <= ?`,
+    ).bind(nowIso, windowEnd).all<Record<string, unknown>>()
+  ).results || [];
+
+  for (const b of bookings) {
+    if (!(await claimReminder(env, b.id as string, 'event'))) continue;
+    const email = await renterEmail(env, b.renter_id as string);
+    await env.DB.prepare(
+      `INSERT INTO notifications (id, user_id, title, body, type, is_read, action_url, created_at, updated_at)
+       VALUES (?, ?, 'Your event is coming up', ?, 'reminder', 0, ?, ?, ?)`,
+    ).bind(genId('ntf'), b.renter_id, `${b.event_name} is almost here.`, `/renter/bookings/${b.id}`, nowIso, nowIso).run();
+    if (email) {
+      await sendEmail(env, {
+        to: email,
+        subject: `Reminder: ${b.event_name} is coming up`,
+        html: emailLayout('Your event is almost here', `<p>Just a friendly reminder that <strong>${b.event_name}</strong> is happening soon. We can't wait to host you!</p>`),
+      });
+    }
+  }
+}
+
+/** Invite renters to review the day after a completed event. */
+async function reviewRequests(env: Env): Promise<void> {
+  const now = new Date();
+  const dayAgo = new Date(now.getTime() - 24 * 3600 * 1000).toISOString();
+  const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 3600 * 1000).toISOString();
+  const nowIso = now.toISOString();
+  const bookings = (
+    await env.DB.prepare(
+      `SELECT b.* FROM bookings b
+       WHERE b.status IN ('confirmed','completed') AND b.end_time <= ? AND b.end_time >= ?
+       AND NOT EXISTS (SELECT 1 FROM reviews r WHERE r.booking_id = b.id)`,
+    ).bind(dayAgo, threeDaysAgo).all<Record<string, unknown>>()
+  ).results || [];
+
+  for (const b of bookings) {
+    if (!(await claimReminder(env, b.id as string, 'review'))) continue;
+    const email = await renterEmail(env, b.renter_id as string);
+    await env.DB.prepare(
+      `INSERT INTO notifications (id, user_id, title, body, type, is_read, action_url, created_at, updated_at)
+       VALUES (?, ?, 'How was your event?', ?, 'review', 0, ?, ?, ?)`,
+    ).bind(genId('ntf'), b.renter_id, `Share how ${b.event_name} went.`, `/renter/bookings/${b.id}`, nowIso, nowIso).run();
+    if (email) {
+      await sendEmail(env, {
+        to: email,
+        subject: `How was ${b.event_name}?`,
+        html: emailLayout('How was your event?', `<p>We hope <strong>${b.event_name}</strong> was wonderful. Would you take a moment to share how it went? It helps the community find great spaces.</p>`,
+          { label: 'Leave a review', url: `${env.APP_URL || ''}/renter/bookings/${b.id}` }),
+      });
+    }
+  }
 }
 
 /** Notify renters + operators about COIs expiring within 14 days or already expired. */

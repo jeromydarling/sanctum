@@ -16,6 +16,8 @@ const EventMicrosite = lazy(() => import('./pages/marketing/EventMicrosite.js'))
 // Auth
 const Login = lazy(() => import('./pages/auth/Login.js'));
 const Signup = lazy(() => import('./pages/auth/Signup.js'));
+const Forgot = lazy(() => import('./pages/auth/Forgot.js'));
+const Reset = lazy(() => import('./pages/auth/Reset.js'));
 
 // Operator
 const OperatorLayout = lazy(() => import('./pages/operator/OperatorLayout.js'));
@@ -91,6 +93,8 @@ export function App() {
 
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot" element={<Forgot />} />
+        <Route path="/reset" element={<Reset />} />
 
         <Route path="/operator" element={<Protected roles={['operator', 'staff']}><OperatorLayout /></Protected>}>
           <Route index element={<OperatorOverview />} />

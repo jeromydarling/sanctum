@@ -76,7 +76,10 @@ export default function Login() {
 
           <form onSubmit={submit} className="space-y-4">
             <Input label="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@community.org" />
-            <Input label="Password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+            <div>
+              <Input label="Password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+              <Link to="/forgot" className="mt-1.5 block text-right text-xs font-medium text-primary hover:underline">Forgot your password?</Link>
+            </div>
             <Button type="submit" full loading={busy}>Sign in <ArrowRight className="h-4 w-4" /></Button>
           </form>
         </div>

@@ -24,6 +24,7 @@ export default function Settings() {
   const [studio, setStudio] = useState(false);
   const [busy, setBusy] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [billingBusy, setBillingBusy] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (!facility || !form) return <EmptyState title="No facility yet" icon={<Building2 className="h-8 w-8" />} />;
@@ -55,6 +56,15 @@ export default function Settings() {
       downloadBlob(new Blob([JSON.stringify(getData(), null, 2)], { type: 'application/json' }), 'sanctum-export-demo.json');
     }
     toast.success('Your data is downloading');
+  }
+
+  async function manageBilling() {
+    setBillingBusy(true);
+    try {
+      const res = await api<{ url?: string; demo?: boolean; error?: string }>('/stripe/portal', { body: { facility_id: facility!.id } });
+      if (res.url) { window.location.href = res.url; return; }
+      toast.info(res.error || 'Billing management opens once you have an active paid subscription.');
+    } catch (e) { notifyError(e); } finally { setBillingBusy(false); }
   }
 
   async function choosePlan(p: import('@sanctum/shared').Plan) {
@@ -120,7 +130,12 @@ export default function Settings() {
       </CardBody></Card>
 
       <Card className="mt-5"><CardBody>
-        <h2 className="font-semibold">Your plan</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold">Your plan</h2>
+          <Badge tone={form.subscription_status === 'active' ? 'success' : form.subscription_status === 'canceled' ? 'danger' : 'gold'}>
+            {form.subscription_status === 'trialing' ? 'Free trial' : form.subscription_status || 'trialing'}
+          </Badge>
+        </div>
         <p className="mt-1 text-sm text-stone-warm">Every plan includes the transparent 1.5% per paid booking. Change anytime — your first 30 days are free.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           {PLANS.map((p) => {
@@ -135,6 +150,10 @@ export default function Settings() {
               </button>
             );
           })}
+        </div>
+        <div className="mt-4 flex items-center justify-between border-t border-black/5 pt-4">
+          <p className="text-sm text-stone-warm">Update your card, download invoices, or cancel anytime.</p>
+          <Button variant="outline" loading={billingBusy} onClick={manageBilling}><CreditCard className="h-4 w-4" /> Manage billing</Button>
         </div>
       </CardBody></Card>
 

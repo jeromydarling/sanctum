@@ -58,7 +58,7 @@ Only Stripe needs a key now — AI is Workers AI and email is Cloudflare Email S
 There is **no** Anthropic or Resend key — those third parties were removed.
 
 After Stripe is live, add the webhook endpoint `https://sanctum.garden/api/stripe/webhooks`
-subscribed to `account.updated`, `checkout.session.completed`, and
+subscribed to `account.updated`, `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, and
 `payment_intent.payment_failed`.
 
 ---
@@ -88,7 +88,7 @@ Do these in order, pausing for me to confirm before each "Save":
 
 5. Stripe webhook: In the Stripe dashboard (test mode) → Developers → Webhooks → add an
    endpoint at https://sanctum.garden/api/stripe/webhooks, subscribed to:
-   account.updated, checkout.session.completed, payment_intent.payment_failed.
+   account.updated, checkout.session.completed, customer.subscription.updated, customer.subscription.deleted, payment_intent.payment_failed.
    Copy the signing secret (whsec_…) and use it for STRIPE_WEBHOOK_SECRET above.
 
 After each step, tell me what changed and the last 4 characters of any secret I entered.

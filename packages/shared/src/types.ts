@@ -50,6 +50,7 @@ export interface Facility {
   cover_image_url: string | null;
   stripe_account_id: string | null;
   stripe_onboarded: Bool;
+  stripe_customer_id?: string | null;
   plan: Plan;
   subscription_status: string;
   is_listed: Bool;

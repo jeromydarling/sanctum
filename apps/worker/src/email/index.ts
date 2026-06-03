@@ -25,6 +25,8 @@ export async function sendEmail(env: Env, msg: EmailMessage): Promise<{ sent: bo
       subject: msg.subject,
       html: msg.html,
       text: msg.text || stripHtml(msg.html),
+      // Route replies to a real inbox (the from-address is send-only).
+      ...(env.EMAIL_REPLY_TO ? { headers: { 'Reply-To': env.EMAIL_REPLY_TO } } : {}),
     });
     return { sent: true };
   } catch (e) {

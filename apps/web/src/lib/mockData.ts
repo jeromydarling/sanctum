@@ -61,7 +61,7 @@ export function freshStore(): StoreData {
     address: '1420 Linden Avenue', city: 'Minneapolis', state: 'MN', zip: '55404',
     phone: '(612) 555-0142', email: 'hello@stbrigidcenter.org', website: 'https://stbrigidcenter.org',
     logo_url: null, cover_image_url: null, stripe_account_id: 'acct_demo_operator', stripe_onboarded: 1,
-    plan: 'growth', subscription_status: 'active', is_listed: 1, requires_approval: 1,
+    plan: 'growth', subscription_status: 'active', is_listed: 1, requires_approval: 0,
     approval_lead_days: 3, cancellation_policy: 'Full refund up to 7 days before your event.',
     facility_use_agreement_url: null, require_coi: 1, min_coi_amount_cents: 100000000,
     tax_exempt_id: null, created_at: NOW, updated_at: NOW,
@@ -95,7 +95,7 @@ export function freshStore(): StoreData {
   ];
 
   const bookings: Booking[] = [
-    booking('bkg-1', 'spc-hall', 'usr-demo-renter', 'Spring Benefit Dinner', 'community', 160, iso(12, 17), iso(12, 22), 70000, 'pending'),
+    booking('bkg-1', 'spc-hall', 'usr-demo-renter', 'Spring Benefit Dinner', 'community', 160, iso(12, 17), iso(12, 22), 70000, 'approved'),
     booking('bkg-2', 'spc-class', 'usr-demo-renter2', 'Beginner Quilting Workshop', 'class', 18, iso(8, 10), iso(8, 14), 16000, 'approved'),
     booking('bkg-3', 'spc-chapel', 'usr-demo-renter', 'Youth Spring Recital', 'concert', 70, iso(20, 18), iso(20, 21), 30000, 'confirmed'),
     booking('bkg-4', 'spc-gym', 'usr-demo-renter2', 'Community Wellness Fair', 'community', 140, iso(-10, 9), iso(-10, 15), 60000, 'completed'),
@@ -128,8 +128,8 @@ export function freshStore(): StoreData {
 
   const notifications: Notification[] = [
     {
-      id: 'ntf-1', user_id: 'usr-demo-operator', title: 'New booking request',
-      body: 'Spring Benefit Dinner needs your review.', type: 'booking', is_read: 0,
+      id: 'ntf-1', user_id: 'usr-demo-operator', title: 'New booking',
+      body: 'Spring Benefit Dinner was booked — awaiting payment.', type: 'booking', is_read: 0,
       action_url: '/operator/bookings/bkg-1', created_at: NOW, updated_at: NOW,
     },
     {

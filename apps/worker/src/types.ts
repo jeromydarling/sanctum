@@ -10,6 +10,7 @@ export interface Env {
   // Vars
   PLATFORM_FEE_PERCENT?: string;
   EMAIL_FROM?: string;
+  EMAIL_REPLY_TO?: string;
   APP_URL?: string;
   // Secrets (optional; degrade gracefully when absent)
   AUTH_SECRET?: string;
@@ -25,6 +26,7 @@ export interface SendEmailBinding {
     subject: string;
     html?: string;
     text?: string;
+    headers?: Record<string, string>;
   }): Promise<void>;
 }
 

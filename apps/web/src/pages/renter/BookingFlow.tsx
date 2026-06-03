@@ -21,7 +21,7 @@ interface Space {
   weekend_hourly_rate_cents: number | null; deposit_amount_cents: number; images: string[]; amenities: string[]; buffer_minutes: number;
 }
 interface PricingRule { org_type: string; discount_percent: number; }
-interface Facility { id: string; name: string; slug: string; spaces: Space[]; require_coi?: number; pricing_rules?: PricingRule[]; }
+interface Facility { id: string; name: string; slug: string; spaces: Space[]; require_coi?: number; requires_approval?: number; pricing_rules?: PricingRule[]; }
 
 export default function BookingFlow() {
   const { facilityId, spaceId } = useParams();
@@ -53,6 +53,7 @@ export default function BookingFlow() {
   const startISO = form.date ? new Date(`${form.date}T${form.start}:00`).toISOString() : '';
   const endISO = form.date ? new Date(`${form.date}T${form.end}:00`).toISOString() : '';
 
+  const requiresApproval = facility?.requires_approval === 1;
   const discountPercent = myOrgType
     ? facility?.pricing_rules?.find((r) => r.org_type === myOrgType)?.discount_percent || 0
     : 0;
@@ -87,12 +88,12 @@ export default function BookingFlow() {
         expected_attendance: form.expected_attendance ? Number(form.expected_attendance) : undefined,
         start_time: startISO, end_time: endISO, renter_notes: form.renter_notes,
       }, user!.id);
-      toast.success('Request submitted!');
+      toast.success(requiresApproval ? 'Request submitted!' : 'Booking created — let\'s get you confirmed');
       navigate(`/renter/bookings/${booking.id}`);
     } catch (e) { notifyError(e); } finally { setBusy(false); }
   }
 
-  const steps = ['When', 'Your event', 'Review & request'];
+  const steps = ['When', 'Your event', 'Review'];
 
   return (
     <div className="min-h-screen bg-cream">
@@ -140,7 +141,7 @@ export default function BookingFlow() {
             )}
             {step === 2 && (
               <>
-                <h2 className="font-display text-xl font-bold">Review your request</h2>
+                <h2 className="font-display text-xl font-bold">Review your booking</h2>
                 <dl className="space-y-2 text-sm">
                   <Line label="Space" value={space.name} />
                   <Line label="Event" value={form.event_name} />
@@ -153,7 +154,7 @@ export default function BookingFlow() {
                     <span>I agree to {facility.name}'s facility use agreement and will provide a certificate of insurance if required. <span className="text-stone-warm">(Digital signature — {new Date().toLocaleDateString()})</span></span>
                   </label>
                 </div>
-                <p className="flex items-start gap-1.5 text-xs text-stone-warm"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 text-primary/60" /> Your card is only charged once the host approves. Submitting sends a request, not a payment.</p>
+                <p className="flex items-start gap-1.5 text-xs text-stone-warm"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 text-primary/60" /> {requiresApproval ? 'Submitting sends a request — your card is only charged once the host approves.' : 'Next you\'ll complete payment to confirm your date.'}</p>
               </>
             )}
 
@@ -162,7 +163,7 @@ export default function BookingFlow() {
               {step < 2 ? (
                 <Button disabled={step === 0 ? !validStep0 : !validStep1} onClick={() => setStep(step + 1)}>Continue <ArrowRight className="h-4 w-4" /></Button>
               ) : (
-                <Button loading={busy} onClick={submit}>Submit request</Button>
+                <Button loading={busy} onClick={submit}>{requiresApproval ? 'Submit request' : 'Confirm & continue'}</Button>
               )}
             </div>
           </CardBody></Card>

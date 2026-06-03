@@ -37,6 +37,7 @@
   "vars": {
     "PLATFORM_FEE_PERCENT": "1.5",
     "EMAIL_FROM": "Sanctum <hello@sanctum.garden>",
+    "EMAIL_REPLY_TO": "gardener@thecros.app",
     "APP_URL": "https://sanctum.garden"
   },
   // Cloudflare Images — enabled.

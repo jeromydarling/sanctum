@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS facilities (
   plan                        TEXT NOT NULL DEFAULT 'starter',
   subscription_status         TEXT NOT NULL DEFAULT 'trialing',
   is_listed                   INTEGER NOT NULL DEFAULT 1,
-  requires_approval           INTEGER NOT NULL DEFAULT 1,
+  requires_approval           INTEGER NOT NULL DEFAULT 0,
   approval_lead_days          INTEGER NOT NULL DEFAULT 3,
   cancellation_policy         TEXT,
   facility_use_agreement_url  TEXT,

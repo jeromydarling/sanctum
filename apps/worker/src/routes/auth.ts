@@ -47,9 +47,10 @@ export async function handleSignup(env: Env, req: Request): Promise<Response> {
     const facId = starterFacilityId(userId);
     const baseName = body.organization_name || body.full_name || 'Your Community';
     const slug = `${slugify(baseName)}-${userId.slice(-6)}`;
+    // Auto-approve by default: a booking goes straight to payment, no review gate.
     await env.DB.prepare(
-      `INSERT INTO facilities (id, operator_id, name, slug, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
+      `INSERT INTO facilities (id, operator_id, name, slug, requires_approval, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 0, ?, ?) ON CONFLICT(id) DO NOTHING`,
     )
       .bind(facId, userId, baseName, slug, ts, ts)
       .run();

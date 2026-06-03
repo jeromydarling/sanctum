@@ -131,9 +131,13 @@ export async function handleCreateBooking(
     )
     .run();
 
-  // Notify the operator in-app + email (skip for self-created walk-ins).
+  // Notify the operator in-app + email (skip for self-created walk-ins). Wording
+  // depends on whether this facility gates bookings behind manual approval.
+  const heads = requiresApproval
+    ? { title: 'New booking request', verb: 'A new request came in', cta: 'Review the request' }
+    : { title: 'New booking', verb: 'A new booking came in', cta: 'View the booking' };
   if (!isManual) await notify(env, facility.operator_id as string, {
-    title: 'New booking request',
+    title: heads.title,
     body: `${body.event_name} on ${formatDate(start_time)}`,
     action_url: `/operator/bookings/${id}`,
   });
@@ -148,11 +152,11 @@ export async function handleCreateBooking(
     if (hostEmail) {
       await sendEmail(env, {
         to: hostEmail,
-        subject: `New booking request: ${body.event_name}`,
+        subject: `${heads.title}: ${body.event_name}`,
         html: emailLayout(
-          'New booking request',
-          `<p>A new request came in for <strong>${escapeHtml(body.event_name)}</strong> on ${formatDate(start_time)}.</p>`,
-          { label: 'Review the request', url: `${env.APP_URL || ''}/operator/bookings/${id}` },
+          heads.title,
+          `<p>${heads.verb} for <strong>${escapeHtml(body.event_name)}</strong> on ${formatDate(start_time)}.</p>`,
+          { label: heads.cta, url: `${env.APP_URL || ''}/operator/bookings/${id}` },
         ),
       });
     }

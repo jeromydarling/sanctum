@@ -80,7 +80,7 @@ function iso(daysFromSeed, hour) {
 }
 
 const BOOKINGS = [
-  { id: 'bkg-1', space: 'spc-hall', renter: RENTER, name: 'Spring Benefit Dinner', type: 'community', att: 160, day: 12, sh: 17, eh: 22, sub: 70000, status: 'pending' },
+  { id: 'bkg-1', space: 'spc-hall', renter: RENTER, name: 'Spring Benefit Dinner', type: 'community', att: 160, day: 12, sh: 17, eh: 22, sub: 70000, status: 'approved' },
   { id: 'bkg-2', space: 'spc-class', renter: RENTER2, name: 'Beginner Quilting Workshop', type: 'class', att: 18, day: 8, sh: 10, eh: 14, sub: 16000, status: 'approved' },
   { id: 'bkg-3', space: 'spc-chapel', renter: RENTER, name: 'Youth Spring Recital', type: 'concert', att: 70, day: 20, sh: 18, eh: 21, sub: 30000, status: 'confirmed' },
   { id: 'bkg-4', space: 'spc-gym', renter: RENTER2, name: 'Community Wellness Fair', type: 'community', att: 140, day: -10, sh: 9, eh: 15, sub: 60000, status: 'completed' },
@@ -122,7 +122,7 @@ async function main() {
   }
 
   lines.push(
-    `\nINSERT INTO facilities (id, operator_id, name, slug, denomination, description, address, city, state, zip, phone, email, website, plan, subscription_status, is_listed, requires_approval, require_coi, stripe_onboarded, created_at, updated_at) VALUES (${q(FAC)}, ${q(OP)}, ${q('St. Brigid Community Center')}, ${q('st-brigid-community-center')}, ${q('Nondenominational')}, ${q('A neighborhood community center with spaces for every gathering — from wedding receptions in the Fellowship Hall to workshops, recitals, and shared meals. We believe a building that sits empty is a gift waiting to be given.')}, ${q('1420 Linden Avenue')}, ${q('Minneapolis')}, ${q('MN')}, ${q('55404')}, ${q('(612) 555-0142')}, ${q('hello@stbrigidcenter.org')}, ${q('https://stbrigidcenter.org')}, ${q('growth')}, ${q('active')}, 1, 1, 1, 1, ${q(NOW)}, ${q(NOW)}) ON CONFLICT(id) DO NOTHING;`,
+    `\nINSERT INTO facilities (id, operator_id, name, slug, denomination, description, address, city, state, zip, phone, email, website, plan, subscription_status, is_listed, requires_approval, require_coi, stripe_onboarded, created_at, updated_at) VALUES (${q(FAC)}, ${q(OP)}, ${q('St. Brigid Community Center')}, ${q('st-brigid-community-center')}, ${q('Nondenominational')}, ${q('A neighborhood community center with spaces for every gathering — from wedding receptions in the Fellowship Hall to workshops, recitals, and shared meals. We believe a building that sits empty is a gift waiting to be given.')}, ${q('1420 Linden Avenue')}, ${q('Minneapolis')}, ${q('MN')}, ${q('55404')}, ${q('(612) 555-0142')}, ${q('hello@stbrigidcenter.org')}, ${q('https://stbrigidcenter.org')}, ${q('growth')}, ${q('active')}, 1, 0, 1, 1, ${q(NOW)}, ${q(NOW)}) ON CONFLICT(id) DO NOTHING;`,
   );
 
   for (const s of SPACES) {

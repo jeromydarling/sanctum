@@ -1,0 +1,50 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sanctum",
+  "main": "apps/worker/src/index.ts",
+  "compatibility_date": "2025-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  },
+  // Serve the built SPA static assets, falling back to index.html for client routes.
+  // API routes are matched first via run_worker_first.
+  "assets": {
+    "directory": "apps/web/dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // Workers Builds runs this on every push to main.
+  "build": {
+    "command": "npm run build"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "sanctum",
+      "database_id": "PLACEHOLDER_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+  "triggers": {
+    // Daily at 08:00 UTC: insurance/COI expiry sweep + monthly auto-invoicing (idempotent).
+    "crons": ["0 8 * * *"]
+  },
+  "vars": {
+    "PLATFORM_FEE_PERCENT": "1.5",
+    "RESEND_FROM_EMAIL": "hello@sanctum.app",
+    "APP_URL": "https://sanctum.app"
+  }
+  // R2 and Cloudflare Images are enabled from the dashboard. Kept commented until then;
+  // the Worker degrades gracefully when STORAGE / IMAGES bindings are absent.
+  // "r2_buckets": [
+  //   { "binding": "STORAGE", "bucket_name": "sanctum-files" }
+  // ],
+  // "images": {
+  //   "binding": "IMAGES"
+  // }
+}

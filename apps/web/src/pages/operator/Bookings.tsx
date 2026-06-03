@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Inbox, Check, X } from 'lucide-react';
+import { Inbox, Check, X, Plus } from 'lucide-react';
 import { PageHeader } from '../../components/dash/DashShell.js';
-import { Card, Badge, Button, EmptyState, Modal, Textarea } from '../../components/ui.js';
+import { Card, Badge, Button, EmptyState, Modal, Textarea, Input, Select } from '../../components/ui.js';
 import { useStore } from '../../lib/store.js';
 import { useAuth } from '../../lib/auth.js';
 import { facilityForOperator, bookingsForFacility, spaceName, renterName } from '../../lib/selectors.js';
 import { formatCents, BOOKING_STATUS_META, formatRange, relativeDate } from '../../lib/format.js';
-import { bookingAction } from '../../lib/actions.js';
+import { bookingAction, createBooking } from '../../lib/actions.js';
 import { notifyError } from '../../lib/errors.js';
 import { cn } from '../../lib/cn.js';
 
@@ -22,6 +22,7 @@ export default function Bookings() {
   const [denyId, setDenyId] = useState<string | null>(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   if (!facility) return <EmptyState title="No facility yet" />;
   const all = bookingsForFacility(data, facility.id);
@@ -49,7 +50,7 @@ export default function Bookings() {
 
   return (
     <div>
-      <PageHeader title="Bookings" subtitle="Review requests and manage your calendar of events." />
+      <PageHeader title="Bookings" subtitle="Review requests and manage your calendar of events." action={<Button onClick={() => setAddOpen(true)}><Plus className="h-4 w-4" /> Add booking</Button>} />
       <div className="mb-5 inline-flex rounded-card border border-black/10 bg-white p-1">
         {(['pending', 'upcoming', 'past'] as Tab[]).map((t) => (
           <button key={t} onClick={() => setTab(t)} className={cn('rounded-[6px] px-4 py-1.5 text-sm font-medium capitalize transition', tab === t ? 'bg-primary text-white' : 'text-ink/70 hover:bg-black/[0.03]')}>
@@ -88,6 +89,8 @@ export default function Bookings() {
         </div>
       )}
 
+      {addOpen && facility && <ManualBookingModal facilityId={facility.id} operatorId={user!.id} spaces={data.spaces.filter((s) => s.facility_id === facility.id)} onClose={() => setAddOpen(false)} />}
+
       <Modal open={!!denyId} onClose={() => setDenyId(null)} title="Decline this request">
         <p className="text-sm text-stone-warm">Let the renter know why — they'll receive a kind note with your reason.</p>
         <Textarea className="mt-3" placeholder="We have a conflict that day, but we'd love to host you another time…" value={reason} onChange={(e) => setReason(e.target.value)} />
@@ -97,5 +100,48 @@ export default function Bookings() {
         </div>
       </Modal>
     </div>
+  );
+}
+
+function ManualBookingModal({ facilityId, operatorId, spaces, onClose }: { facilityId: string; operatorId: string; spaces: import('@sanctum/shared').Space[]; onClose: () => void }) {
+  const [form, setForm] = useState({ space_id: spaces[0]?.id || '', event_name: '', walkin_name: '', date: '', start: '10:00', end: '14:00', attendance: '' });
+  const [busy, setBusy] = useState(false);
+
+  async function create() {
+    if (!form.space_id || !form.event_name.trim() || !form.date) { toast.error('Fill in the space, event name, and date'); return; }
+    setBusy(true);
+    try {
+      await createBooking({
+        facility_id: facilityId, space_id: form.space_id, event_name: form.event_name,
+        expected_attendance: form.attendance ? Number(form.attendance) : undefined,
+        start_time: new Date(`${form.date}T${form.start}:00`).toISOString(),
+        end_time: new Date(`${form.date}T${form.end}:00`).toISOString(),
+        manual: true, walkin_name: form.walkin_name,
+      }, operatorId);
+      toast.success('Booking added to your calendar');
+      onClose();
+    } catch (e) { notifyError(e); } finally { setBusy(false); }
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Add a booking">
+      <div className="space-y-3">
+        <p className="text-sm text-stone-warm">For a walk-in or a renter you booked offline. It's added as confirmed.</p>
+        <Select label="Space" value={form.space_id} onChange={(e) => setForm({ ...form, space_id: e.target.value })}>
+          {spaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </Select>
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Event name" value={form.event_name} onChange={(e) => setForm({ ...form, event_name: e.target.value })} placeholder="Smith Family Reunion" />
+          <Input label="Renter name" value={form.walkin_name} onChange={(e) => setForm({ ...form, walkin_name: e.target.value })} placeholder="Pat Smith" />
+        </div>
+        <Input label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+        <div className="grid grid-cols-3 gap-3">
+          <Input label="From" type="time" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} />
+          <Input label="To" type="time" value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} />
+          <Input label="Guests" type="number" value={form.attendance} onChange={(e) => setForm({ ...form, attendance: e.target.value })} />
+        </div>
+        <div className="flex justify-end gap-2"><Button variant="ghost" onClick={onClose}>Cancel</Button><Button loading={busy} onClick={create}>Add booking</Button></div>
+      </div>
+    </Modal>
   );
 }

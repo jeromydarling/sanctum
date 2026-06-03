@@ -25,6 +25,9 @@ interface CreateBookingBody {
   resource_ids?: string[];
   renter_notes?: string;
   discount_percent?: number;
+  /** Operator-created walk-in booking (auto-confirmed). */
+  manual?: boolean;
+  walkin_name?: string;
 }
 
 const ACTIVE_STATUSES = ['pending', 'approved', 'confirmed'];
@@ -61,6 +64,13 @@ export async function handleCreateBooking(
   if (conflict) {
     return err('That time overlaps an existing booking for this space.', 409, { conflict: true });
   }
+  // Reject times the operator has blocked off (maintenance, internal events, holidays).
+  const blocked = await env.DB.prepare(
+    'SELECT id FROM availability_blocks WHERE space_id = ? AND start_time < ? AND end_time > ?',
+  ).bind(space_id, end_time, start_time).first();
+  if (blocked) {
+    return err('That time is unavailable for this space.', 409, { conflict: true });
+  }
 
   // --- Recompute money server-side; never trust client amounts ---
   const resourceIds = Array.isArray(body.resource_ids) ? body.resource_ids : [];
@@ -82,10 +92,13 @@ export async function handleCreateBooking(
     platformFeePercent: feePercent,
   });
 
+  // Operator-created walk-in bookings are auto-confirmed; otherwise honor approval setting.
+  const isManual = !!body.manual && (await operatesFacility(env, auth.id, facility_id));
   const requiresApproval = Number(facility.requires_approval) === 1;
   const id = genId('bkg');
   const ts = nowISO();
-  const status: BookingStatus = requiresApproval ? 'pending' : 'approved';
+  const status: BookingStatus = isManual ? 'confirmed' : requiresApproval ? 'pending' : 'approved';
+  const operatorNotes = isManual && body.walkin_name ? `Walk-in: ${body.walkin_name}` : null;
 
   await env.DB.prepare(
     `INSERT INTO bookings (
@@ -93,8 +106,8 @@ export async function handleCreateBooking(
       event_description, expected_attendance, start_time, end_time, setup_start_time,
       subtotal_cents, deposit_cents, resource_fees_cents, discount_cents, total_cents,
       platform_fee_cents, status, coi_uploaded, agreement_signed, resource_ids,
-      renter_notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?)`,
+      renter_notes, operator_notes, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?)`,
   )
     .bind(
       id, facility_id, space_id, auth.id, body.event_name.trim(), body.event_type || null,
@@ -102,17 +115,17 @@ export async function handleCreateBooking(
       body.setup_start_time || null,
       price.subtotalCents, price.depositCents, price.resourceFeesCents, price.discountCents,
       price.totalCents, price.platformFeeCents, status, JSON.stringify(resourceIds),
-      body.renter_notes || null, ts, ts,
+      body.renter_notes || null, operatorNotes, ts, ts,
     )
     .run();
 
-  // Notify the operator in-app + email.
-  await notify(env, facility.operator_id as string, {
+  // Notify the operator in-app + email (skip for self-created walk-ins).
+  if (!isManual) await notify(env, facility.operator_id as string, {
     title: 'New booking request',
     body: `${body.event_name} on ${formatDate(start_time)}`,
     action_url: `/operator/bookings/${id}`,
   });
-  if (facility.email) {
+  if (!isManual && facility.email) {
     await sendEmail(env, {
       to: facility.email as string,
       subject: `New booking request: ${body.event_name}`,

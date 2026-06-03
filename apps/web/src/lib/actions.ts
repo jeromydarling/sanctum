@@ -47,6 +47,8 @@ export interface NewBookingInput {
   end_time: string;
   resource_ids?: string[];
   renter_notes?: string;
+  manual?: boolean;
+  walkin_name?: string;
 }
 
 export async function createBooking(input: NewBookingInput, renterId: string): Promise<Booking> {
@@ -95,15 +97,16 @@ export async function createBooking(input: NewBookingInput, renterId: string): P
     expected_attendance: input.expected_attendance || null, start_time: input.start_time, end_time: input.end_time,
     setup_start_time: null, subtotal_cents: price.subtotalCents, deposit_cents: price.depositCents,
     resource_fees_cents: price.resourceFeesCents, discount_cents: price.discountCents, total_cents: price.totalCents,
-    platform_fee_cents: price.platformFeeCents, status: requiresApproval ? 'pending' : 'approved',
+    platform_fee_cents: price.platformFeeCents, status: input.manual ? 'confirmed' : requiresApproval ? 'pending' : 'approved',
     denial_reason: null, cancellation_reason: null, coi_uploaded: 0, agreement_signed: 0, agreement_signed_at: null,
     stripe_payment_intent_id: null, stripe_checkout_session_id: null, deposit_paid_at: null, balance_paid_at: null,
-    resource_ids: input.resource_ids || [], renter_notes: input.renter_notes || null, operator_notes: null,
+    resource_ids: input.resource_ids || [], renter_notes: input.renter_notes || null,
+    operator_notes: input.manual && input.walkin_name ? `Walk-in: ${input.walkin_name}` : null,
     created_at: now, updated_at: now,
   };
   d.bookings.push(booking);
-  // Notify operator locally.
-  if (facility) {
+  // Notify operator locally (skip self-created walk-ins).
+  if (facility && !input.manual) {
     d.notifications.push({
       id: genId('ntf'), user_id: facility.operator_id, title: 'New booking request',
       body: `${input.event_name} needs your review.`, type: 'booking', is_read: 0,

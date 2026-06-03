@@ -46,6 +46,20 @@ const TOOLS: Record<string, ToolDef> = {
     build: (i) =>
       `Draft a ${i.kind} email to ${i.renter_name} regarding their event "${i.event_name}". ${i.context || ''}`,
   },
+  'site-write': {
+    system: 'You write warm, inviting copy for a community event web page. Return 2-3 short paragraphs of body copy only — no headline, no markdown headers.',
+    build: (i) =>
+      `Write inviting web-page body copy for an event called "${i.title}"${i.date ? `, happening ${i.date}` : ''}${i.location ? ` at ${i.location}` : ''}. ${i.notes || ''}`,
+  },
+  'site-command': {
+    system: 'You revise event web-page body copy according to an instruction. Return ONLY the revised body copy, no preamble, no quotes.',
+    build: (i) =>
+      `Current copy:\n"""\n${i.current}\n"""\n\nInstruction: ${i.instruction}\n\nReturn the full revised copy.`,
+  },
+  'learning': {
+    system: 'You are a friendly guide who explains community-facility-rental topics (insurance, permitting, agreements, safety) in plain language. Be practical and concise. Always remind the reader to verify with local authorities.',
+    build: (i) => `${i.question}`,
+  },
 };
 
 export async function handleAITool(

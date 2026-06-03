@@ -91,6 +91,13 @@ export const TABLES: Record<GenericTable, TableDef> = {
     ],
     jsonColumns: ['content'],
   },
+  availability_blocks: {
+    columns: [
+      'id', 'space_id', 'facility_id', 'start_time', 'end_time', 'reason',
+      'created_at', 'updated_at',
+    ],
+    jsonColumns: [],
+  },
 };
 
 export function isGenericTable(t: string): t is GenericTable {

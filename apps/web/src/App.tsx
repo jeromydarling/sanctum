@@ -29,6 +29,7 @@ const OperatorInvoices = lazy(() => import('./pages/operator/Invoices.js'));
 const OperatorRenters = lazy(() => import('./pages/operator/Renters.js'));
 const OperatorLeads = lazy(() => import('./pages/operator/Leads.js'));
 const OperatorAnalytics = lazy(() => import('./pages/operator/Analytics.js'));
+const OperatorReviews = lazy(() => import('./pages/operator/Reviews.js'));
 const OperatorAssistant = lazy(() => import('./pages/operator/Assistant.js'));
 const OperatorSettings = lazy(() => import('./pages/operator/Settings.js'));
 
@@ -39,6 +40,9 @@ const RenterBookings = lazy(() => import('./pages/renter/Bookings.js'));
 const RenterBookingDetail = lazy(() => import('./pages/renter/BookingDetail.js'));
 const RenterDocuments = lazy(() => import('./pages/renter/Documents.js'));
 const RenterSettings = lazy(() => import('./pages/renter/Settings.js'));
+const RenterSites = lazy(() => import('./pages/renter/Sites.js'));
+const RenterSiteBuilder = lazy(() => import('./pages/renter/SiteBuilder.js'));
+const RenterLearn = lazy(() => import('./pages/renter/Learn.js'));
 const BookingFlow = lazy(() => import('./pages/renter/BookingFlow.js'));
 
 // Admin
@@ -46,6 +50,7 @@ const AdminLayout = lazy(() => import('./pages/admin/AdminLayout.js'));
 const AdminOverview = lazy(() => import('./pages/admin/Overview.js'));
 const AdminFacilities = lazy(() => import('./pages/admin/Facilities.js'));
 const AdminUsers = lazy(() => import('./pages/admin/Users.js'));
+const AdminAnnouncements = lazy(() => import('./pages/admin/Announcements.js'));
 const AdminErrors = lazy(() => import('./pages/admin/Errors.js'));
 
 function PageLoader() {
@@ -97,6 +102,7 @@ export function App() {
           <Route path="renters" element={<OperatorRenters />} />
           <Route path="leads" element={<OperatorLeads />} />
           <Route path="analytics" element={<OperatorAnalytics />} />
+          <Route path="reviews" element={<OperatorReviews />} />
           <Route path="assistant" element={<OperatorAssistant />} />
           <Route path="settings" element={<OperatorSettings />} />
         </Route>
@@ -106,6 +112,9 @@ export function App() {
           <Route path="bookings" element={<RenterBookings />} />
           <Route path="bookings/:id" element={<RenterBookingDetail />} />
           <Route path="documents" element={<RenterDocuments />} />
+          <Route path="sites" element={<RenterSites />} />
+          <Route path="sites/:id" element={<RenterSiteBuilder />} />
+          <Route path="learn" element={<RenterLearn />} />
           <Route path="settings" element={<RenterSettings />} />
         </Route>
         <Route path="/book/:facilityId/:spaceId" element={<Protected roles={['renter']}><BookingFlow /></Protected>} />
@@ -114,6 +123,7 @@ export function App() {
           <Route index element={<AdminOverview />} />
           <Route path="facilities" element={<AdminFacilities />} />
           <Route path="users" element={<AdminUsers />} />
+          <Route path="announcements" element={<AdminAnnouncements />} />
           <Route path="errors" element={<AdminErrors />} />
         </Route>
 

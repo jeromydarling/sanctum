@@ -241,6 +241,17 @@ export interface EventMicrosite {
   updated_at: ISODate;
 }
 
+export interface AvailabilityBlock {
+  id: string;
+  space_id: string;
+  facility_id: string;
+  start_time: ISODate;
+  end_time: ISODate;
+  reason: string | null;
+  created_at: ISODate;
+  updated_at: ISODate;
+}
+
 /** Tables routed through the generic write-through upsert. */
 export type GenericTable =
   | 'profiles'
@@ -251,7 +262,8 @@ export type GenericTable =
   | 'reviews'
   | 'leads'
   | 'notifications'
-  | 'event_microsites';
+  | 'event_microsites'
+  | 'availability_blocks';
 
 /** Tables that bypass the generic upsert (money/conflict-sensitive). */
 export type ProtectedTable = 'bookings' | 'invoices';

@@ -5,7 +5,7 @@
  */
 import type {
   Profile, Facility, Space, Resource, Booking, ComplianceDoc,
-  Invoice, Review, Lead, Notification, EventMicrosite,
+  Invoice, Review, Lead, Notification, EventMicrosite, AvailabilityBlock,
 } from '@sanctum/shared';
 
 export interface StoreData {
@@ -20,6 +20,7 @@ export interface StoreData {
   leads: Lead[];
   notifications: Notification[];
   event_microsites: EventMicrosite[];
+  availability_blocks: AvailabilityBlock[];
 }
 
 const NOW = '2026-06-01T12:00:00.000Z';
@@ -147,9 +148,22 @@ export function freshStore(): StoreData {
     { id: 'usr-demo-renter2', email: 'renter2@demo.sanctum.app', full_name: 'Lena Park', role: 'renter', phone: null, organization_name: 'Riverside Quilters Guild', organization_type: 'community_group', avatar_url: null, created_at: NOW, updated_at: NOW },
   ];
 
+  const event_microsites: EventMicrosite[] = [{
+    id: 'site-1', facility_id: FAC, renter_id: 'usr-demo-renter', booking_id: 'bkg-3',
+    slug: 'youth-spring-recital', title: 'Youth Spring Recital',
+    content: {
+      headline: 'Youth Spring Recital', date: 'June 21, 2026 · 6:00 PM',
+      location: 'The Chapel, St. Brigid Community Center',
+      body: 'Join us for an evening of music as our young performers share the songs they\'ve worked on all season. Doors open at 5:30. Light refreshments to follow.',
+      cta: 'RSVP', cover: '', theme: 'indigo',
+    },
+    is_published: 1, rsvp_enabled: 1, created_at: NOW, updated_at: NOW,
+  }];
+
   return {
     profiles, facilities: [facility], spaces, resources, bookings,
-    compliance_docs, invoices, reviews, leads, notifications, event_microsites: [],
+    compliance_docs, invoices, reviews, leads, notifications, event_microsites,
+    availability_blocks: [],
   };
 }
 

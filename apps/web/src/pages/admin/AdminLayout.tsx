@@ -1,10 +1,11 @@
-import { LayoutDashboard, Building2, Users, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, AlertTriangle, Megaphone } from 'lucide-react';
 import { DashShell, type NavItem } from '../../components/dash/DashShell.js';
 
 const NAV: NavItem[] = [
   { to: '/admin', label: 'Overview', icon: LayoutDashboard, end: true },
   { to: '/admin/facilities', label: 'Facilities', icon: Building2 },
   { to: '/admin/users', label: 'Users', icon: Users },
+  { to: '/admin/announcements', label: 'Announcements', icon: Megaphone },
   { to: '/admin/errors', label: 'Error log', icon: AlertTriangle },
 ];
 

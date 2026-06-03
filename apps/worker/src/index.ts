@@ -15,7 +15,7 @@ import { handleAITool, handleAIImage } from './routes/ai.js';
 import { handleUpload, handleFileServe } from './routes/files.js';
 import { handleTelemetry, handleExport, handleDeleteAccount } from './routes/misc.js';
 import { handleConnectAccount, handleCheckout, handleWebhook } from './routes/stripe.js';
-import { handleAdminErrors } from './routes/admin.js';
+import { handleAdminErrors, handleAdminAnnounce } from './routes/admin.js';
 import { runScheduled } from './scheduled.js';
 
 export default {
@@ -124,6 +124,7 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
 
   // Admin
   if (path === '/api/admin/errors' && method === 'GET') return handleAdminErrors(env, auth);
+  if (path === '/api/admin/announce' && method === 'POST') return handleAdminAnnounce(env, req, auth);
 
   // Stripe (authenticated)
   if (path === '/api/stripe/connect/create-account' && method === 'POST') return handleConnectAccount(env, req, auth);

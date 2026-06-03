@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CreditCard, Check, Download, Trash2, Building2, ImagePlus } from 'lucide-react';
+import { PLAN_DETAILS, PLANS, formatCents } from '@sanctum/shared';
 import { PageHeader } from '../../components/dash/DashShell.js';
 import { Card, CardBody, Button, Input, Textarea, Badge, EmptyState, Modal } from '../../components/ui.js';
 import { SmartImage } from '../../components/SmartImage.js';
@@ -105,6 +106,25 @@ export default function Settings() {
             <p className="mt-1 text-sm text-stone-warm">Connect Stripe to receive booking payments — minus a transparent 1.5%.</p>
           </div>
           {form.stripe_onboarded ? <Badge tone="success"><Check className="h-3.5 w-3.5" /> Connected</Badge> : <Button onClick={connectStripe} loading={connecting}><CreditCard className="h-4 w-4" /> Connect Stripe</Button>}
+        </div>
+      </CardBody></Card>
+
+      <Card className="mt-5"><CardBody>
+        <h2 className="font-semibold">Your plan</h2>
+        <p className="mt-1 text-sm text-stone-warm">Every plan includes the transparent 1.5% per paid booking. Change anytime — your first 30 days are free.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          {PLANS.map((p) => {
+            const plan = PLAN_DETAILS[p];
+            const current = form!.plan === p;
+            return (
+              <button key={p} onClick={async () => { set('plan', p); await wt('facilities', { ...form!, plan: p }); toast.success(`You're on ${plan.name}`); }}
+                className={`rounded-card border-2 p-4 text-left transition ${current ? 'border-primary bg-primary-50' : 'border-black/10 hover:border-primary/30'}`}>
+                <div className="flex items-center justify-between"><span className="font-display font-bold">{plan.name}</span>{current && <Badge tone="primary">Current</Badge>}</div>
+                <div className="tabular mt-1 text-2xl font-bold">{formatCents(plan.priceCents)}<span className="text-sm font-normal text-stone-warm">/mo</span></div>
+                <p className="mt-1 text-xs text-stone-warm">{plan.spaceLimit ? `Up to ${plan.spaceLimit} spaces` : 'Unlimited spaces'}</p>
+              </button>
+            );
+          })}
         </div>
       </CardBody></Card>
 

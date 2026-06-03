@@ -36,8 +36,8 @@
   },
   "vars": {
     "PLATFORM_FEE_PERCENT": "1.5",
-    "RESEND_FROM_EMAIL": "hello@sanctum.app",
-    "APP_URL": "https://sanctum.app"
+    "RESEND_FROM_EMAIL": "Sanctum <hello@sanctum.garden>",
+    "APP_URL": "https://sanctum.garden"
   }
   // R2 and Cloudflare Images are enabled from the dashboard. Kept commented until then;
   // the Worker degrades gracefully when STORAGE / IMAGES bindings are absent.

@@ -73,8 +73,13 @@ export async function canWrite(
       return operatesFacility(env, auth.id, row.facility_id as string);
     case 'spaces':
     case 'resources':
-    case 'event_microsites':
+    case 'availability_blocks':
       return operatesFacility(env, auth.id, row.facility_id as string);
+    case 'event_microsites':
+      return (
+        row.renter_id === auth.id ||
+        operatesFacility(env, auth.id, row.facility_id as string)
+      );
     case 'compliance_docs':
       return (
         row.renter_id === auth.id ||

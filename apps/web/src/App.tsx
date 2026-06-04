@@ -8,6 +8,7 @@ import type { Role } from '@sanctum/shared';
 const Landing = lazy(() => import('./pages/marketing/Landing.js'));
 const About = lazy(() => import('./pages/marketing/About.js'));
 const Pricing = lazy(() => import('./pages/marketing/Pricing.js'));
+const Features = lazy(() => import('./pages/marketing/Features.js'));
 const Find = lazy(() => import('./pages/marketing/Find.js'));
 const Privacy = lazy(() => import('./pages/marketing/Privacy.js'));
 const PublicFacility = lazy(() => import('./pages/marketing/PublicFacility.js'));
@@ -94,6 +95,7 @@ export function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/about" element={<About />} />
         <Route path="/pricing" element={<Pricing />} />
+        <Route path="/features" element={<Features />} />
         <Route path="/find" element={<Find />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/c/:slug" element={<PublicFacility />} />

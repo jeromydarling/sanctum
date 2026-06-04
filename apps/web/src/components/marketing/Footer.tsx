@@ -12,6 +12,7 @@ export function Footer() {
           </p>
         </div>
         <FooterCol title="Platform" links={[
+          { to: '/features', label: 'Features' },
           { to: '/find', label: 'Find a space' },
           { to: '/pricing', label: 'Pricing' },
           { to: '/signup', label: 'List your space' },

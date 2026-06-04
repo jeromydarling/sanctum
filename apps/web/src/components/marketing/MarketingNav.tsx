@@ -7,6 +7,7 @@ import { useAuth, homeForCurrent } from '../../lib/useHome.js';
 import { cn } from '../../lib/cn.js';
 
 const LINKS = [
+  { to: '/features', label: 'Features' },
   { to: '/about', label: 'Our mission' },
   { to: '/find', label: 'Find a space' },
   { to: '/pricing', label: 'Pricing' },

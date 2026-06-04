@@ -16,6 +16,8 @@ import { handleUpload, handleFileServe } from './routes/files.js';
 import { handleTelemetry, handleExport, handleDeleteAccount } from './routes/misc.js';
 import { handleConnectAccount, handleCheckout, handleWebhook, handleSubscribe, handleBillingPortal, handleDepositResolve } from './routes/stripe.js';
 import { handleAdminErrors, handleAdminAnnounce } from './routes/admin.js';
+import { handleNetworkInvite, handleInviteInfo, handleNetworkAccept } from './routes/networks.js';
+import { handleQboConnect, handleQboCallback, handleQboStatus, handleQboDisconnect, handleQboSync } from './routes/qbo.js';
 import { handleIcalExport, handleSubscribeUrl, handleIcalImport } from './routes/ical.js';
 import { runScheduled } from './scheduled.js';
 
@@ -84,6 +86,7 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   }
   if (path === '/api/telemetry/error' && method === 'POST') return handleTelemetry(env, req);
   if (path === '/api/stripe/webhooks' && method === 'POST') return handleWebhook(env, req);
+  if (path === '/api/qbo/callback' && method === 'GET') return handleQboCallback(env, url);
 
   // File serving is public (keys are unguessable).
   if (seg[0] === 'files' && method === 'GET') {
@@ -141,6 +144,11 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
     }
   }
 
+  // Networks (self-serve invitations)
+  if (path === '/api/networks/invite' && method === 'POST') return handleNetworkInvite(env, req, auth);
+  if (path === '/api/networks/invite-info' && method === 'GET') return handleInviteInfo(env, url, auth);
+  if (path === '/api/networks/accept' && method === 'POST') return handleNetworkAccept(env, req, auth);
+
   // Admin
   if (path === '/api/admin/errors' && method === 'GET') return handleAdminErrors(env, auth);
   if (path === '/api/admin/announce' && method === 'POST') return handleAdminAnnounce(env, req, auth);
@@ -150,6 +158,12 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   if (path === '/api/stripe/checkout' && method === 'POST') return handleCheckout(env, req, auth);
   if (path === '/api/stripe/subscribe' && method === 'POST') return handleSubscribe(env, req, auth);
   if (path === '/api/stripe/portal' && method === 'POST') return handleBillingPortal(env, req, auth);
+
+  // QuickBooks Online
+  if (path === '/api/qbo/connect' && method === 'GET') return handleQboConnect(env, url, auth);
+  if (path === '/api/qbo/status' && method === 'GET') return handleQboStatus(env, url, auth);
+  if (path === '/api/qbo/disconnect' && method === 'POST') return handleQboDisconnect(env, req, auth);
+  if (path === '/api/qbo/sync' && method === 'POST') return handleQboSync(env, req, auth);
 
   return err('Not found', 404);
 }

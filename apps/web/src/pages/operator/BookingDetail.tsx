@@ -204,11 +204,11 @@ function DepositCard({ booking }: { booking: Booking }) {
   const [busy, setBusy] = useState(false);
   const status = booking.deposit_status || 'none';
 
-  async function resolve(action: 'return' | 'withhold') {
+  async function resolve(action: 'collect' | 'return' | 'withhold') {
     setBusy(true);
     try {
       await resolveDeposit(booking.id, action, parseDollarsToCents(keep), note);
-      toast.success(action === 'return' ? 'Deposit returned' : 'Deposit resolved');
+      toast.success(action === 'collect' ? 'Deposit marked collected' : action === 'return' ? 'Deposit returned' : 'Deposit resolved');
       setOpen(false);
     } catch (e) { notifyError(e); } finally { setBusy(false); }
   }
@@ -217,9 +217,15 @@ function DepositCard({ booking }: { booking: Booking }) {
     <Card><CardBody className="space-y-2">
       <h2 className="flex items-center gap-2 font-semibold"><Wallet className="h-4 w-4 text-primary" /> Security deposit</h2>
       <div className="flex items-center justify-between text-sm">
-        <span>{formatCents(booking.deposit_cents)} held</span>
-        <Badge tone={status === 'held' ? 'gold' : status === 'returned' ? 'success' : status === 'withheld' ? 'warning' : 'neutral'}>{status}</Badge>
+        <span>{formatCents(booking.deposit_cents)}{status === 'held' ? ' held' : status === 'none' ? ' deposit' : ''}</span>
+        <Badge tone={status === 'held' ? 'gold' : status === 'returned' ? 'success' : status === 'withheld' ? 'warning' : 'neutral'}>{status === 'none' ? 'not collected' : status}</Badge>
       </div>
+      {status === 'none' && (
+        <div className="space-y-2">
+          <p className="text-xs text-stone-warm">If you took a cash or check deposit, record it here so you can track returning it.</p>
+          <Button size="sm" variant="outline" full loading={busy} onClick={() => resolve('collect')}>Mark collected (cash/check)</Button>
+        </div>
+      )}
       {status === 'withheld' && (
         <p className="rounded-card bg-cream px-2.5 py-2 text-xs text-stone-warm">Returned {formatCents(booking.deposit_returned_cents || 0)} · kept {formatCents((booking.deposit_cents || 0) - (booking.deposit_returned_cents || 0))}{booking.deposit_resolution_note ? ` — ${booking.deposit_resolution_note}` : ''}</p>
       )}

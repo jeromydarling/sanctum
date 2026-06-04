@@ -53,6 +53,14 @@ Only Stripe needs a key now — AI is Workers AI and email is Cloudflare Email S
 |-------------------------|-----------------------------------------|-----------|
 | `STRIPE_SECRET_KEY`     | Payments + subscriptions (use **test** key first) | for real payments |
 | `STRIPE_WEBHOOK_SECRET` | Verifies Stripe webhook signatures      | for real payments |
+| `QBO_CLIENT_ID`         | QuickBooks Online live sync             | optional  |
+| `QBO_CLIENT_SECRET`     | QuickBooks Online live sync             | optional  |
+
+**QuickBooks Online (optional live sync):** create an app at the Intuit Developer
+portal, add the redirect URI `https://sanctum.garden/api/qbo/callback`, request the
+`com.intuit.quickbooks.accounting` scope, and set `QBO_CLIENT_ID` / `QBO_CLIENT_SECRET`
+as encrypted secrets. Set the `QBO_ENV` var to `sandbox` while testing, `production`
+when live. Without these, operators still get the QuickBooks-compatible CSV exports.
 
 `AUTH_SECRET` is **not** needed — it auto-generates into the D1 `app_secrets` table.
 There is **no** Anthropic or Resend key — those third parties were removed.

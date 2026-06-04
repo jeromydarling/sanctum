@@ -144,9 +144,9 @@ export async function createBooking(input: NewBookingInput, renterId: string): P
 
 export async function resolveDeposit(
   bookingId: string,
-  action: 'return' | 'withhold',
-  keepCents: number,
-  note: string,
+  action: 'collect' | 'return' | 'withhold',
+  keepCents = 0,
+  note = '',
 ): Promise<void> {
   const booking = table('bookings').find((b) => b.id === bookingId);
   if (!booking) return;
@@ -154,13 +154,17 @@ export async function resolveDeposit(
   const refund = action === 'withhold' ? Math.max(0, deposit - keepCents) : deposit;
   if (isLive()) {
     const res = await api<{ booking: Booking }>(`/bookings/${bookingId}/deposit`, { body: { action, keep_cents: keepCents, note } });
-    Object.assign(booking, res.booking);
+    if (res.booking) Object.assign(booking, res.booking);
     touch();
     return;
   }
-  booking.deposit_status = action === 'withhold' && keepCents > 0 ? 'withheld' : 'returned';
-  booking.deposit_returned_cents = refund;
-  booking.deposit_resolution_note = note || null;
+  if (action === 'collect') {
+    booking.deposit_status = 'held';
+  } else {
+    booking.deposit_status = action === 'withhold' && keepCents > 0 ? 'withheld' : 'returned';
+    booking.deposit_returned_cents = refund;
+    booking.deposit_resolution_note = note || null;
+  }
   booking.updated_at = new Date().toISOString();
   touch();
 }

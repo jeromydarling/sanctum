@@ -179,11 +179,23 @@ export async function handleDepositResolve(env: Env, req: Request, auth: AuthCon
     return err('Only the facility operator can resolve a deposit', 403);
   }
   const deposit = Number(booking.deposit_cents || 0);
-  if (deposit <= 0 || booking.deposit_status !== 'held') {
+  if (deposit <= 0) return err('This booking has no deposit', 400);
+
+  const b = await readJson<{ action?: string; keep_cents?: number; note?: string }>(req);
+
+  // Mark a cash/check deposit as collected (no Stripe involved).
+  if (b.action === 'collect') {
+    if (booking.deposit_status === 'held') return json({ ok: true });
+    await env.DB.prepare('UPDATE bookings SET deposit_status = ?, updated_at = ? WHERE id = ?')
+      .bind('held', nowISO(), bookingId).run();
+    const saved0 = await getBookingRow(env, bookingId);
+    return json({ ok: true, booking: saved0 });
+  }
+
+  if (booking.deposit_status !== 'held') {
     return err('There is no held deposit to resolve for this booking', 400);
   }
 
-  const b = await readJson<{ action?: string; keep_cents?: number; note?: string }>(req);
   const keep = Math.max(0, Math.min(deposit, Math.round(Number(b.keep_cents) || 0)));
   const isWithhold = b.action === 'withhold';
   const refundCents = isWithhold ? deposit - keep : deposit;
@@ -217,9 +229,13 @@ export async function handleDepositResolve(env: Env, req: Request, auth: AuthCon
     });
   }
 
-  const saved = await env.DB.prepare('SELECT * FROM bookings WHERE id = ?').bind(bookingId).first<Record<string, unknown>>();
-  try { (saved as Record<string, unknown>).resource_ids = JSON.parse((saved?.resource_ids as string) || '[]'); } catch { /* noop */ }
-  return json({ ok: true, booking: saved });
+  return json({ ok: true, booking: await getBookingRow(env, bookingId) });
+}
+
+async function getBookingRow(env: Env, id: string): Promise<Record<string, unknown> | null> {
+  const row = await env.DB.prepare('SELECT * FROM bookings WHERE id = ?').bind(id).first<Record<string, unknown>>();
+  if (row) { try { row.resource_ids = JSON.parse((row.resource_ids as string) || '[]'); } catch { row.resource_ids = []; } }
+  return row;
 }
 
 /** POST /api/stripe/webhooks — signature-verified. */

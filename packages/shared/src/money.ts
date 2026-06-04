@@ -111,9 +111,11 @@ export function computeBookingPrice(
     candidates.push(input.fullDayRateCents * days);
   }
 
-  const spaceSubtotalCents = candidates.length
-    ? Math.min(...candidates.filter((c) => c > 0))
-    : 0;
+  // Bill the cheapest applicable positive tier. Guard against an all-zero set
+  // (e.g. a free/unpriced space) — Math.min() of [] is Infinity, which would
+  // corrupt the subtotal, total, and platform fee.
+  const positiveCandidates = candidates.filter((c) => c > 0);
+  const spaceSubtotalCents = positiveCandidates.length ? Math.min(...positiveCandidates) : 0;
 
   const resourceFeesCents = Math.max(0, Math.round(input.resourceFeesCents || 0));
 

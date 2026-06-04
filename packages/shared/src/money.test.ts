@@ -112,6 +112,30 @@ describe('computeBookingPrice', () => {
     expect(b.spaceSubtotalCents).toBe(16000);
   });
 
+  it('returns 0 (never Infinity) for an unpriced space', () => {
+    const b = computeBookingPrice({
+      startTime: '2026-01-01T10:00:00Z',
+      endTime: '2026-01-01T12:00:00Z',
+      hourlyRateCents: 0, // no rates set at all
+    });
+    expect(Number.isFinite(b.spaceSubtotalCents)).toBe(true);
+    expect(b.spaceSubtotalCents).toBe(0);
+    expect(b.subtotalCents).toBe(0);
+    expect(b.totalCents).toBe(0);
+    expect(b.platformFeeCents).toBe(0);
+  });
+
+  it('still bills resources when the space itself is unpriced', () => {
+    const b = computeBookingPrice({
+      startTime: '2026-01-01T10:00:00Z',
+      endTime: '2026-01-01T12:00:00Z',
+      hourlyRateCents: 0,
+      resourceFeesCents: 5000,
+    });
+    expect(b.subtotalCents).toBe(5000);
+    expect(b.platformFeeCents).toBe(75);
+  });
+
   it('charges per day beyond a full day', () => {
     const b = computeBookingPrice({
       startTime: '2026-01-01T08:00:00Z',

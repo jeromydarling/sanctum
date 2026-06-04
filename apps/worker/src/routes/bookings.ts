@@ -10,7 +10,7 @@ import {
   type Lease,
 } from '@sanctum/shared';
 import type { Env, AuthContext } from '../types.js';
-import { json, err, readJson, genId, nowISO } from '../http.js';
+import { json, err, readJson, genId, nowISO, clientIP } from '../http.js';
 import { operatesFacility } from '../db.js';
 import { sendEmail, emailLayout } from '../email/index.js';
 
@@ -27,6 +27,10 @@ interface CreateBookingBody {
   resource_ids?: string[];
   renter_notes?: string;
   discount_percent?: number;
+  /** Pay-what-you-can amount for donation-mode spaces. */
+  donation_cents?: number;
+  /** Typed name = e-signature of the use agreement. */
+  signer_name?: string;
   /** Operator-created walk-in booking (auto-confirmed). */
   manual?: boolean;
   walkin_name?: string;
@@ -102,7 +106,9 @@ export async function handleCreateBooking(
 
   const isWeekend = [0, 6].includes(new Date(start_time).getUTCDay());
   const feePercent = parseFloat(env.PLATFORM_FEE_PERCENT || '1.5');
-  const price = computeBookingPrice({
+  const pricingMode = (space.pricing_mode as string) || 'standard';
+
+  let price = computeBookingPrice({
     startTime: start_time,
     endTime: end_time,
     hourlyRateCents: Number(space.hourly_rate_cents || 0),
@@ -116,6 +122,15 @@ export async function handleCreateBooking(
     platformFeePercent: feePercent,
   });
 
+  // Rent-or-donate: a free space costs nothing; a donation space is pay-what-you-can.
+  if (pricingMode === 'free') {
+    price = { ...price, spaceSubtotalCents: 0, discountCents: 0, subtotalCents: resourceFeesCents, totalCents: resourceFeesCents, platformFeeCents: Math.round((resourceFeesCents * feePercent) / 100) };
+  } else if (pricingMode === 'donation') {
+    const donation = Math.max(0, Math.round(Number(body.donation_cents) || 0));
+    const subtotal = donation + resourceFeesCents;
+    price = { ...price, spaceSubtotalCents: donation, discountCents: 0, subtotalCents: subtotal, totalCents: subtotal, platformFeeCents: Math.round((subtotal * feePercent) / 100) };
+  }
+
   // Operator-created walk-in bookings are auto-confirmed; otherwise honor approval setting.
   const isManual = !!body.manual && (await operatesFacility(env, auth.id, facility_id));
   const requiresApproval = Number(facility.requires_approval) === 1;
@@ -124,22 +139,28 @@ export async function handleCreateBooking(
   const status: BookingStatus = isManual ? 'confirmed' : requiresApproval ? 'pending' : 'approved';
   const operatorNotes = isManual && body.walkin_name ? `Walk-in: ${body.walkin_name}` : null;
 
+  // E-signature audit: a renter who types their name signs the use agreement.
+  const signer = (body.signer_name || '').trim() || null;
+  const signed = signer && !isManual ? 1 : 0;
+  const signedAt = signed ? ts : null;
+  const signerIp = signed ? clientIP(req) : null;
+
   await env.DB.prepare(
     `INSERT INTO bookings (
       id, facility_id, space_id, renter_id, event_name, event_type,
       event_description, expected_attendance, start_time, end_time, setup_start_time,
       subtotal_cents, deposit_cents, resource_fees_cents, discount_cents, total_cents,
-      platform_fee_cents, status, coi_uploaded, agreement_signed, resource_ids,
-      renter_notes, operator_notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?)`,
+      platform_fee_cents, status, coi_uploaded, agreement_signed, agreement_signed_at,
+      agreement_signer, agreement_ip, resource_ids, renter_notes, operator_notes, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       id, facility_id, space_id, auth.id, body.event_name.trim(), body.event_type || null,
       body.event_description || null, body.expected_attendance || null, start_time, end_time,
       body.setup_start_time || null,
       price.subtotalCents, price.depositCents, price.resourceFeesCents, price.discountCents,
-      price.totalCents, price.platformFeeCents, status, JSON.stringify(resourceIds),
-      body.renter_notes || null, operatorNotes, ts, ts,
+      price.totalCents, price.platformFeeCents, status, signed, signedAt, signer, signerIp,
+      JSON.stringify(resourceIds), body.renter_notes || null, operatorNotes, ts, ts,
     )
     .run();
 

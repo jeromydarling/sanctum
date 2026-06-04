@@ -8,6 +8,9 @@ import { Card, CardBody, Button, Input, Textarea, Badge, EmptyState, Modal } fro
 import { SmartImage } from '../../components/SmartImage.js';
 import { ImageStudio } from '../../components/ImageStudio.js';
 import { CalendarSyncCard } from '../../components/CalendarSync.js';
+import { AiDisclaimer } from '../../components/AiDisclaimer.js';
+import { callAI } from '../../lib/ai.js';
+import { Sparkles, Copy, FileSignature, Code } from 'lucide-react';
 import { useStore, wt, getData } from '../../lib/store.js';
 import { useAuth } from '../../lib/auth.js';
 import { facilityForOperator } from '../../lib/selectors.js';
@@ -26,6 +29,8 @@ export default function Settings() {
   const [busy, setBusy] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [billingBusy, setBillingBusy] = useState(false);
+  const [agreementBusy, setAgreementBusy] = useState(false);
+  const [copiedEmbed, setCopiedEmbed] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (!facility || !form) return <EmptyState title="No facility yet" icon={<Building2 className="h-8 w-8" />} />;
@@ -58,6 +63,16 @@ export default function Settings() {
     }
     toast.success('Your data is downloading');
   }
+
+  async function generateAgreement() {
+    setAgreementBusy(true);
+    const fallback = `FACILITY USE AGREEMENT\n\nThis agreement is between ${form!.name} ("Host") and the Renter named in the booking.\n\n1. Permitted use. The space is rented solely for the event described in the booking.\n2. Care of the space. The Renter leaves the space clean and undamaged and is responsible for their guests.\n3. Insurance & liability. The Renter carries liability insurance where required and assumes responsibility for their event.\n4. Conduct. No unlawful, unsafe, or prohibited activities; the Host's posted rules apply.\n5. Payment & deposits. Fees and any refundable deposit are due per the booking.\n6. Cancellation. Per the Host's stated cancellation policy.`;
+    const text = await callAI('generate-agreement', { facility_name: form!.name, address: `${form!.address}, ${form!.city}, ${form!.state}`, space_name: 'your spaces' }, fallback);
+    set('use_agreement_text', text);
+    setAgreementBusy(false);
+  }
+
+  const embedCode = `<a href="https://sanctum.garden/c/${facility.slug}" style="display:inline-block;background:#4338ca;color:#fff;padding:12px 22px;border-radius:8px;font-family:sans-serif;font-weight:600;text-decoration:none">Rent our space</a>`;
 
   async function manageBilling() {
     setBillingBusy(true);
@@ -118,6 +133,30 @@ export default function Settings() {
           <input type="checkbox" checked={form.require_coi === 1} onChange={(e) => set('require_coi', e.target.checked ? 1 : 0)} className="h-4 w-4" /> Require certificate of insurance
         </label>
         <div className="flex justify-end"><Button onClick={save} loading={busy}>Save changes</Button></div>
+      </CardBody></Card>
+
+      <Card className="mt-5"><CardBody className="space-y-3">
+        <div className="flex items-center gap-2"><FileSignature className="h-5 w-5 text-primary" /><h2 className="font-semibold">Facility use agreement</h2></div>
+        <p className="text-sm text-stone-warm">Renters read this and type their name to sign it when they book — a real signature record with a timestamp is kept on every booking.</p>
+        <div className="flex justify-end">
+          <button onClick={generateAgreement} disabled={agreementBusy} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+            <Sparkles className="h-3.5 w-3.5" /> {agreementBusy ? 'Writing…' : 'Draft with AI'}
+          </button>
+        </div>
+        <Textarea className="min-h-[180px] font-mono text-xs" value={form.use_agreement_text || ''} onChange={(e) => set('use_agreement_text', e.target.value)} placeholder="Your standard facility use agreement…" />
+        <AiDisclaimer />
+        <div className="flex justify-end"><Button onClick={save} loading={busy}>Save agreement</Button></div>
+      </CardBody></Card>
+
+      <Card className="mt-5"><CardBody className="space-y-3">
+        <div className="flex items-center gap-2"><Code className="h-5 w-5 text-primary" /><h2 className="font-semibold">Add a "Rent our space" button to your website</h2></div>
+        <p className="text-sm text-stone-warm">Paste this snippet anywhere on your existing site — it links straight to your public booking page.</p>
+        <pre className="overflow-x-auto rounded-card bg-ink p-3 text-[11px] leading-relaxed text-white/90"><code>{embedCode}</code></pre>
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(embedCode); setCopiedEmbed(true); setTimeout(() => setCopiedEmbed(false), 1500); }}>
+            {copiedEmbed ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} Copy snippet
+          </Button>
+        </div>
       </CardBody></Card>
 
       <CalendarSyncCard facility={facility} />

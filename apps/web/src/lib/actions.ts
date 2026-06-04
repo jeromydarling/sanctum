@@ -47,6 +47,8 @@ export interface NewBookingInput {
   end_time: string;
   resource_ids?: string[];
   renter_notes?: string;
+  donation_cents?: number;
+  signer_name?: string;
   manual?: boolean;
   walkin_name?: string;
 }
@@ -92,16 +94,26 @@ export async function createBooking(input: NewBookingInput, renterId: string): P
   const discountPercent = rule?.discount_percent || 0;
 
   const isWeekend = [0, 6].includes(new Date(input.start_time).getUTCDay());
-  const price = computeBookingPrice({
+  let price = computeBookingPrice({
     startTime: input.start_time, endTime: input.end_time,
     hourlyRateCents: space.hourly_rate_cents || 0,
     halfDayRateCents: space.half_day_rate_cents, fullDayRateCents: space.full_day_rate_cents,
     weekendHourlyRateCents: space.weekend_hourly_rate_cents, resourceFeesCents: resourceFees,
     depositCents: space.deposit_amount_cents, discountPercent, isWeekend,
   });
+  // Rent-or-donate pricing.
+  const mode = space.pricing_mode || 'standard';
+  if (mode === 'free') {
+    price = { ...price, spaceSubtotalCents: 0, discountCents: 0, subtotalCents: resourceFees, totalCents: resourceFees, platformFeeCents: Math.round(resourceFees * 0.015) };
+  } else if (mode === 'donation') {
+    const donation = Math.max(0, Math.round(input.donation_cents || 0));
+    const subtotal = donation + resourceFees;
+    price = { ...price, spaceSubtotalCents: donation, discountCents: 0, subtotalCents: subtotal, totalCents: subtotal, platformFeeCents: Math.round(subtotal * 0.015) };
+  }
   const facility = d.facilities.find((f) => f.id === input.facility_id);
   const requiresApproval = facility ? facility.requires_approval === 1 : true;
   const now = new Date().toISOString();
+  const signer = (input.signer_name || '').trim() || null;
   const booking: Booking = {
     id: genId('bkg'), facility_id: input.facility_id, space_id: input.space_id, renter_id: renterId,
     event_name: input.event_name, event_type: input.event_type || null, event_description: input.event_description || null,
@@ -109,7 +121,9 @@ export async function createBooking(input: NewBookingInput, renterId: string): P
     setup_start_time: null, subtotal_cents: price.subtotalCents, deposit_cents: price.depositCents,
     resource_fees_cents: price.resourceFeesCents, discount_cents: price.discountCents, total_cents: price.totalCents,
     platform_fee_cents: price.platformFeeCents, status: input.manual ? 'confirmed' : requiresApproval ? 'pending' : 'approved',
-    denial_reason: null, cancellation_reason: null, coi_uploaded: 0, agreement_signed: 0, agreement_signed_at: null,
+    denial_reason: null, cancellation_reason: null, coi_uploaded: 0,
+    agreement_signed: signer && !input.manual ? 1 : 0, agreement_signed_at: signer && !input.manual ? now : null,
+    agreement_signer: signer && !input.manual ? signer : null, agreement_ip: null,
     stripe_payment_intent_id: null, stripe_checkout_session_id: null, deposit_paid_at: null, balance_paid_at: null,
     resource_ids: input.resource_ids || [], renter_notes: input.renter_notes || null,
     operator_notes: input.manual && input.walkin_name ? `Walk-in: ${input.walkin_name}` : null,

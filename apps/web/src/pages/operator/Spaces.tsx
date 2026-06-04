@@ -114,6 +114,11 @@ function SpaceEditor({ facilityId, space, onClose }: { facilityId: string; space
             {SPACE_TYPES.map((t) => <option key={t} value={t}>{SPACE_TYPE_LABELS[t]}</option>)}
           </Select>
         </div>
+        <Select label="Pricing" value={form.pricing_mode || 'standard'} onChange={(e) => set('pricing_mode', e.target.value as Space['pricing_mode'])} hint="Rent at your listed rates, accept pay-what-you-can donations, or offer the space free to the community.">
+          <option value="standard">Standard — listed rates</option>
+          <option value="donation">Donation — pay what you can</option>
+          <option value="free">Free for the community</option>
+        </Select>
         <div>
           <div className="mb-1.5 flex items-center justify-between">
             <span className="text-sm font-medium">Description</span>
@@ -206,6 +211,6 @@ function blankSpace(facilityId: string): Space {
     full_day_rate_cents: null, weekend_hourly_rate_cents: null, deposit_amount_cents: 0,
     available_days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'], available_start_time: '07:00',
     available_end_time: '22:00', min_booking_hours: 1, max_booking_hours: null, buffer_minutes: 30,
-    amenities: [], images: [], allowed_uses: [], restricted_uses: [], is_active: 1, created_at: now, updated_at: now,
+    amenities: [], images: [], allowed_uses: [], restricted_uses: [], pricing_mode: 'standard', is_active: 1, created_at: now, updated_at: now,
   };
 }

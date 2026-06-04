@@ -61,11 +61,14 @@ export interface Facility {
   require_coi: Bool;
   min_coi_amount_cents: number;
   tax_exempt_id: string | null;
+  use_agreement_text?: string | null;
   ical_token?: string | null;
   external_ical_url?: string | null;
   created_at: ISODate;
   updated_at: ISODate;
 }
+
+export type PricingMode = 'standard' | 'donation' | 'free';
 
 export interface Space {
   id: string;
@@ -90,6 +93,7 @@ export interface Space {
   images: string[]; // JSON of file keys/urls
   allowed_uses: string[]; // JSON
   restricted_uses: string[]; // JSON
+  pricing_mode?: PricingMode;
   is_active: Bool;
   created_at: ISODate;
   updated_at: ISODate;
@@ -132,6 +136,8 @@ export interface Booking {
   coi_uploaded: Bool;
   agreement_signed: Bool;
   agreement_signed_at: ISODate | null;
+  agreement_signer?: string | null;
+  agreement_ip?: string | null;
   stripe_payment_intent_id: string | null;
   stripe_checkout_session_id: string | null;
   deposit_paid_at: ISODate | null;

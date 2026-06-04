@@ -124,6 +124,7 @@ function publicFacility(
     logo_url: f.logo_url,
     cover_image_url: f.cover_image_url,
     requires_approval: f.requires_approval,
+    use_agreement_text: f.use_agreement_text,
     spaces,
     pricing_rules: pricingRules.map((r) => ({ org_type: r.org_type, discount_percent: r.discount_percent })),
   };

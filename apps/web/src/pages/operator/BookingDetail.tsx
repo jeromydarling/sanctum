@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, Check, X, FileText, Receipt, CalendarDays, Users2, MapPin } from 'lucide-react';
-import { Card, CardBody, Badge, Button, EmptyState, Modal, Textarea } from '../../components/ui.js';
+import { ArrowLeft, Check, X, FileText, Receipt, CalendarDays, Users2, MapPin, ShieldQuestion, Sparkles } from 'lucide-react';
+import { Card, CardBody, Badge, Button, EmptyState, Modal, Textarea, Spinner } from '../../components/ui.js';
+import { AiDisclaimer } from '../../components/AiDisclaimer.js';
 import { useStore } from '../../lib/store.js';
 import { spaceName, renterName, profile } from '../../lib/selectors.js';
-import { formatCents, BOOKING_STATUS_META, formatRange } from '../../lib/format.js';
+import { formatCents, BOOKING_STATUS_META, formatRange, formatDate } from '../../lib/format.js';
 import { bookingAction, createInvoiceFromBooking } from '../../lib/actions.js';
+import { callAI } from '../../lib/ai.js';
 import { notifyError } from '../../lib/errors.js';
+import type { Booking, Facility } from '@sanctum/shared';
 
 export default function BookingDetail() {
   const { id } = useParams();
@@ -99,7 +102,14 @@ export default function BookingDetail() {
               <span>Use agreement</span>
               <Badge tone={booking.agreement_signed ? 'success' : 'neutral'}>{booking.agreement_signed ? 'signed' : 'pending'}</Badge>
             </div>
+            {booking.agreement_signed === 1 && booking.agreement_signer && (
+              <p className="rounded-card bg-cream px-2.5 py-2 text-xs text-stone-warm">
+                ✍️ Signed by <span className="font-medium text-ink">{booking.agreement_signer}</span> on {formatDate(booking.agreement_signed_at)}{booking.agreement_ip ? ` · ${booking.agreement_ip}` : ''}
+              </p>
+            )}
           </CardBody></Card>
+
+          <SuitabilityPanel booking={booking} facility={data.facilities.find((f) => f.id === booking.facility_id)} />
 
           <div className="space-y-2">
             {booking.status === 'pending' && (
@@ -143,5 +153,44 @@ function Row({ label, value, bold, muted }: { label: string; value: string; bold
       <span className={bold ? 'font-semibold' : ''}>{label}</span>
       <span className={`tabular ${bold ? 'font-bold' : ''}`}>{value}</span>
     </div>
+  );
+}
+
+function SuitabilityPanel({ booking, facility }: { booking: Booking; facility?: Facility }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState('');
+
+  async function screen() {
+    setBusy(true);
+    const policy = [facility?.cancellation_policy, facility?.use_agreement_text].filter(Boolean).join(' ') || 'Standard community-space rules: safe, lawful, respectful use.';
+    const fallback = `Recommendation: Review.\n\nThis "${booking.event_type || 'event'}" with about ${booking.expected_attendance ?? 'an unknown number of'} guests looks like a reasonable community booking. Confirm it fits your space's capacity and house rules, and that any required insurance is in place before approving.`;
+    const text = await callAI('check-suitability', {
+      event_type: booking.event_type || 'event',
+      attendance: booking.expected_attendance ?? 'unknown',
+      description: booking.event_description || booking.event_name,
+      policy,
+    }, fallback);
+    setResult(text);
+    setBusy(false);
+  }
+
+  return (
+    <Card><CardBody className="space-y-2">
+      <h2 className="flex items-center gap-2 font-semibold"><ShieldQuestion className="h-4 w-4 text-primary" /> Event screening</h2>
+      {!result ? (
+        <>
+          <p className="text-sm text-stone-warm">Have AI check this request against your house rules and flag anything to review.</p>
+          <Button size="sm" variant="outline" loading={busy} onClick={screen}><Sparkles className="h-3.5 w-3.5" /> Screen this request</Button>
+        </>
+      ) : busy ? (
+        <div className="flex items-center gap-2 text-sm text-stone-warm"><Spinner className="h-4 w-4" /> Screening…</div>
+      ) : (
+        <>
+          <p className="whitespace-pre-wrap rounded-card bg-cream p-3 text-sm text-ink/80">{result}</p>
+          <button onClick={screen} className="text-xs font-medium text-primary hover:underline">Re-screen</button>
+          <AiDisclaimer />
+        </>
+      )}
+    </CardBody></Card>
   );
 }

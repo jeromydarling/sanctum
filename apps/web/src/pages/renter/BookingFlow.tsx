@@ -10,7 +10,7 @@ import { useStore } from '../../lib/store.js';
 import { createBooking } from '../../lib/actions.js';
 import { notifyError } from '../../lib/errors.js';
 import {
-  computeBookingPrice, durationMinutes, formatCents,
+  computeBookingPrice, durationMinutes, formatCents, parseDollarsToCents,
   SPACE_TYPE_LABELS, SPACE_TYPE_EMOJI, type SpaceType,
 } from '@sanctum/shared';
 import { cn } from '../../lib/cn.js';
@@ -18,10 +18,11 @@ import { cn } from '../../lib/cn.js';
 interface Space {
   id: string; name: string; space_type: SpaceType; description: string | null; capacity_persons: number | null;
   hourly_rate_cents: number; half_day_rate_cents: number | null; full_day_rate_cents: number | null;
-  weekend_hourly_rate_cents: number | null; deposit_amount_cents: number; images: string[]; amenities: string[]; buffer_minutes: number;
+  weekend_hourly_rate_cents: number | null; deposit_amount_cents: number; images: string[]; amenities: string[];
+  buffer_minutes: number; pricing_mode?: 'standard' | 'donation' | 'free';
 }
 interface PricingRule { org_type: string; discount_percent: number; }
-interface Facility { id: string; name: string; slug: string; spaces: Space[]; require_coi?: number; requires_approval?: number; pricing_rules?: PricingRule[]; }
+interface Facility { id: string; name: string; slug: string; spaces: Space[]; require_coi?: number; requires_approval?: number; pricing_rules?: PricingRule[]; use_agreement_text?: string | null; }
 
 export default function BookingFlow() {
   const { facilityId, spaceId } = useParams();
@@ -36,7 +37,7 @@ export default function BookingFlow() {
 
   const [form, setForm] = useState({
     date: '', start: '10:00', end: '14:00', event_name: '', event_type: 'community',
-    expected_attendance: '', event_description: '', renter_notes: '', agree: false,
+    expected_attendance: '', event_description: '', renter_notes: '', signer: '', donation: '',
   });
 
   useEffect(() => {
@@ -54,20 +55,29 @@ export default function BookingFlow() {
   const endISO = form.date ? new Date(`${form.date}T${form.end}:00`).toISOString() : '';
 
   const requiresApproval = facility?.requires_approval === 1;
-  const discountPercent = myOrgType
+  const mode = space?.pricing_mode || 'standard';
+  const discountPercent = myOrgType && mode === 'standard'
     ? facility?.pricing_rules?.find((r) => r.org_type === myOrgType)?.discount_percent || 0
     : 0;
 
   const price = useMemo(() => {
     if (!space || !startISO || !endISO) return null;
     const isWeekend = [0, 6].includes(new Date(startISO).getUTCDay());
-    return computeBookingPrice({
+    const base = computeBookingPrice({
       startTime: startISO, endTime: endISO, hourlyRateCents: space.hourly_rate_cents,
       halfDayRateCents: space.half_day_rate_cents, fullDayRateCents: space.full_day_rate_cents,
       weekendHourlyRateCents: space.weekend_hourly_rate_cents, depositCents: space.deposit_amount_cents,
       discountPercent, isWeekend,
     });
-  }, [space, startISO, endISO, discountPercent]);
+    if (mode === 'free') {
+      return { ...base, spaceSubtotalCents: 0, discountCents: 0, subtotalCents: 0, totalCents: 0, platformFeeCents: 0 };
+    }
+    if (mode === 'donation') {
+      const donation = parseDollarsToCents(form.donation);
+      return { ...base, spaceSubtotalCents: donation, discountCents: 0, subtotalCents: donation, totalCents: donation, platformFeeCents: Math.round(donation * 0.015) };
+    }
+    return base;
+  }, [space, startISO, endISO, discountPercent, mode, form.donation]);
 
   if (loading) return <div className="flex min-h-screen items-center justify-center"><Spinner className="h-7 w-7" /></div>;
   if (!space || !facility) {
@@ -79,7 +89,7 @@ export default function BookingFlow() {
   const validStep1 = form.event_name.trim().length > 0;
 
   async function submit() {
-    if (!form.agree) { toast.error('Please accept the use agreement to continue'); return; }
+    if (!form.signer.trim()) { toast.error('Please type your name to sign the use agreement'); return; }
     setBusy(true);
     try {
       const booking = await createBooking({
@@ -87,6 +97,8 @@ export default function BookingFlow() {
         event_type: form.event_type, event_description: form.event_description,
         expected_attendance: form.expected_attendance ? Number(form.expected_attendance) : undefined,
         start_time: startISO, end_time: endISO, renter_notes: form.renter_notes,
+        signer_name: form.signer,
+        donation_cents: mode === 'donation' ? parseDollarsToCents(form.donation) : undefined,
       }, user!.id);
       toast.success(requiresApproval ? 'Request submitted!' : 'Booking created — let\'s get you confirmed');
       navigate(`/renter/bookings/${booking.id}`);
@@ -148,11 +160,17 @@ export default function BookingFlow() {
                   <Line label="When" value={`${form.date} · ${form.start}–${form.end}`} />
                   <Line label="Attendance" value={form.expected_attendance || '—'} />
                 </dl>
-                <div className="rounded-card border border-black/10 bg-cream p-4">
-                  <label className="flex cursor-pointer items-start gap-2 text-sm">
-                    <input type="checkbox" checked={form.agree} onChange={(e) => setForm({ ...form, agree: e.target.checked })} className="mt-0.5 h-4 w-4" />
-                    <span>I agree to {facility.name}'s facility use agreement and will provide a certificate of insurance if required. <span className="text-stone-warm">(Digital signature — {new Date().toLocaleDateString()})</span></span>
-                  </label>
+
+                {mode === 'donation' && (
+                  <Input label="Suggested donation (pay what you can)" inputMode="decimal" placeholder="0" value={form.donation} onChange={(e) => setForm({ ...form, donation: e.target.value })} hint="This space is offered on a donation basis — give what your group is able to." />
+                )}
+
+                <div>
+                  <p className="mb-1.5 text-sm font-medium">Facility use agreement</p>
+                  <div className="max-h-40 overflow-y-auto rounded-card border border-black/10 bg-cream p-3 text-xs leading-relaxed text-ink/80 whitespace-pre-wrap">
+                    {facility.use_agreement_text || `By booking, you agree to ${facility.name}'s standard facility use agreement: use the space only for the stated event, leave it clean and undamaged, carry any required insurance, and follow the host's posted rules and cancellation policy.`}
+                  </div>
+                  <Input className="mt-3" label="Type your full name to sign" placeholder="Your full legal name" value={form.signer} onChange={(e) => setForm({ ...form, signer: e.target.value })} hint={`Electronic signature — ${new Date().toLocaleString()}`} />
                 </div>
                 <p className="flex items-start gap-1.5 text-xs text-stone-warm"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 text-primary/60" /> {requiresApproval ? 'Submitting sends a request — your card is only charged once the host approves.' : 'Next you\'ll complete payment to confirm your date.'}</p>
               </>
@@ -182,8 +200,8 @@ export default function BookingFlow() {
           </Card>
           {price && (
             <Card><CardBody className="space-y-2">
-              <h3 className="font-semibold">Estimated price</h3>
-              <Row label="Space" value={formatCents(price.spaceSubtotalCents)} />
+              <h3 className="font-semibold">{mode === 'free' ? 'Free for the community' : mode === 'donation' ? 'Donation-based' : 'Estimated price'}</h3>
+              <Row label={mode === 'donation' ? 'Your donation' : 'Space'} value={formatCents(price.spaceSubtotalCents)} />
               {price.discountCents > 0 && <Row label={`Community discount (${discountPercent}%)`} value={`−${formatCents(price.discountCents)}`} />}
               {space.deposit_amount_cents > 0 && <Row label="Deposit (refundable)" value={formatCents(space.deposit_amount_cents)} />}
               <div className="border-t border-black/5 pt-2"><Row label="Total" value={formatCents(price.subtotalCents)} bold /></div>

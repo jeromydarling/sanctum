@@ -13,7 +13,7 @@ import { formatCents, AMENITY_LABELS, SPACE_TYPE_LABELS, SPACE_TYPE_EMOJI, type 
 interface PublicSpace {
   id: string; name: string; space_type: SpaceType; description: string | null;
   capacity_persons: number | null; hourly_rate_cents: number | null; half_day_rate_cents: number | null;
-  full_day_rate_cents: number | null; images: string[]; amenities: string[];
+  full_day_rate_cents: number | null; images: string[]; amenities: string[]; pricing_mode?: 'standard' | 'donation' | 'free';
 }
 interface Facility {
   id: string; name: string; slug: string; denomination: string | null; description: string | null;
@@ -97,7 +97,7 @@ export default function PublicFacility() {
                   </div>
                   <div className="mt-4 flex items-center justify-between">
                     <span className="flex items-center gap-1 text-sm text-stone-warm"><Users2 className="h-4 w-4" /> up to {s.capacity_persons ?? '—'}</span>
-                    <span className="tabular font-semibold text-primary-700">{s.hourly_rate_cents ? `${formatCents(s.hourly_rate_cents)}/hr` : 'Inquire'}</span>
+                    <span className="tabular font-semibold text-primary-700">{s.pricing_mode === 'free' ? 'Free' : s.pricing_mode === 'donation' ? 'Donation' : s.hourly_rate_cents ? `${formatCents(s.hourly_rate_cents)}/hr` : 'Inquire'}</span>
                   </div>
                   <Button className="mt-4" full variant="outline" asLink="/signup">Request this space</Button>
                 </CardBody>

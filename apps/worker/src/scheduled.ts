@@ -3,12 +3,24 @@ import { platformFeeCents, leaseMonthlyAmountCents, type Lease } from '@sanctum/
 import type { Env } from './types.js';
 import { genId, nowISO } from './http.js';
 import { sendEmail, emailLayout } from './email/index.js';
+import { syncFacilityCalendar } from './routes/ical.js';
 
 export async function runScheduled(env: Env): Promise<void> {
   await coiExpirySweep(env);
   await eventReminders(env);
   await reviewRequests(env);
+  await syncExternalCalendars(env);
   await monthlyAutoInvoicing(env);
+}
+
+/** Re-import each facility's connected external calendar so internal events keep blocking. */
+async function syncExternalCalendars(env: Env): Promise<void> {
+  const facilities = (await env.DB.prepare(
+    "SELECT id FROM facilities WHERE external_ical_url IS NOT NULL AND external_ical_url != ''",
+  ).all<{ id: string }>()).results || [];
+  for (const f of facilities) {
+    try { await syncFacilityCalendar(env, f.id); } catch (e) { console.error('[ical:sync]', f.id, e); }
+  }
 }
 
 /** Once-per-booking idempotency guard for reminders. Returns true if first time. */

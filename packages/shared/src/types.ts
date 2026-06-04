@@ -61,6 +61,8 @@ export interface Facility {
   require_coi: Bool;
   min_coi_amount_cents: number;
   tax_exempt_id: string | null;
+  ical_token?: string | null;
+  external_ical_url?: string | null;
   created_at: ISODate;
   updated_at: ISODate;
 }

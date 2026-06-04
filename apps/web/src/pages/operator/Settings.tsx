@@ -7,6 +7,7 @@ import { PageHeader } from '../../components/dash/DashShell.js';
 import { Card, CardBody, Button, Input, Textarea, Badge, EmptyState, Modal } from '../../components/ui.js';
 import { SmartImage } from '../../components/SmartImage.js';
 import { ImageStudio } from '../../components/ImageStudio.js';
+import { CalendarSyncCard } from '../../components/CalendarSync.js';
 import { useStore, wt, getData } from '../../lib/store.js';
 import { useAuth } from '../../lib/auth.js';
 import { facilityForOperator } from '../../lib/selectors.js';
@@ -118,6 +119,8 @@ export default function Settings() {
         </label>
         <div className="flex justify-end"><Button onClick={save} loading={busy}>Save changes</Button></div>
       </CardBody></Card>
+
+      <CalendarSyncCard facility={facility} />
 
       <Card className="mt-5"><CardBody>
         <div className="flex items-center justify-between">

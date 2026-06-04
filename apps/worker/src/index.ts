@@ -16,6 +16,7 @@ import { handleUpload, handleFileServe } from './routes/files.js';
 import { handleTelemetry, handleExport, handleDeleteAccount } from './routes/misc.js';
 import { handleConnectAccount, handleCheckout, handleWebhook, handleSubscribe, handleBillingPortal } from './routes/stripe.js';
 import { handleAdminErrors, handleAdminAnnounce } from './routes/admin.js';
+import { handleIcalExport, handleSubscribeUrl, handleIcalImport } from './routes/ical.js';
 import { runScheduled } from './scheduled.js';
 
 export default {
@@ -86,6 +87,11 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
     return handleFileServe(env, decodeURIComponent(seg.slice(1).join('/')), url);
   }
 
+  // Outbound iCal feed is public (token-gated, in the path).
+  if (seg[0] === 'ical' && seg[1]?.endsWith('.ics') && method === 'GET') {
+    return handleIcalExport(env, decodeURIComponent(seg[1].replace(/\.ics$/, '')));
+  }
+
   // AI tools may be used by anonymous prospects (IP-metered).
   const auth = await authFromRequest(env, req);
   if (seg[0] === 'ai' && method === 'POST') {
@@ -102,6 +108,10 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   if (path === '/api/data/delete' && method === 'POST') return handleDelete(env, req, auth);
 
   if (path === '/api/upload' && method === 'POST') return handleUpload(env, req, auth);
+
+  // Calendar sync
+  if (path === '/api/ical/subscribe-url' && method === 'GET') return handleSubscribeUrl(env, url, auth);
+  if (path === '/api/ical/import' && method === 'POST') return handleIcalImport(env, req, auth);
 
   if (path === '/api/account/export' && method === 'GET') return handleExport(env, auth);
   if (path === '/api/account/delete' && method === 'POST') return handleDeleteAccount(env, auth);

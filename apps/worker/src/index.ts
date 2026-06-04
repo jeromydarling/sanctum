@@ -3,6 +3,7 @@
  * and all /api/* routes. The whole fetch is wrapped in try/catch returning a
  * friendly error + incident id.
  */
+import * as Sentry from '@sentry/cloudflare';
 import type { Env, AuthContext } from './types.js';
 import { json, err, genId, nowISO } from './http.js';
 import { authFromRequest } from './auth.js';
@@ -20,9 +21,39 @@ import { handleNetworkInvite, handleInviteInfo, handleNetworkAccept, handleNetwo
 import { handleQboConnect, handleQboCallback, handleQboStatus, handleQboDisconnect, handleQboSync } from './routes/qbo.js';
 import { handleIcalExport, handleSubscribeUrl, handleIcalImport } from './routes/ical.js';
 import { runScheduled } from './scheduled.js';
-export { SpaceLock } from './booking-lock.js';
+import { SpaceLock as SpaceLockClass } from './booking-lock.js';
 
-export default {
+// Federation-standard Sentry options. Each surface (worker fetch/cron vs the
+// Durable Object) gets the same base config but a distinct `tier` tag so events
+// stay comparable across the fleet. No-ops when SENTRY_DSN is unset, so Sentry
+// is never a hard dependency.
+const sentryOptions = (tier: 'worker' | 'durable-object') => (env: Env) => ({
+  dsn: env.SENTRY_DSN,
+  tracesSampleRate: 0.1,
+  sendDefaultPii: false,
+  initialScope: {
+    tags: { app_slug: 'sanctum', federation_phase: 'pre-launch', tier },
+  },
+});
+
+// The DO export must be instrumented separately — withSentry only wraps the
+// default fetch/scheduled handler, not Durable Object classes.
+//
+// SpaceLock uses the legacy `implements DurableObject` shape (a `state` field)
+// rather than extending the `DurableObject<Env>` base class, so it lacks the
+// `ctx`/RPC brand the Sentry wrapper's generic constraint expects. The two are
+// runtime-compatible (the wrapper only proxies fetch/RPC), so we assert the
+// constructor type rather than refactor a concurrency-critical DO.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- see note above:
+// the legacy DO shape is runtime-compatible but not structurally assignable to
+// Sentry's `DurableObject<Env>` generic constraint.
+const InstrumentedSpaceLock = Sentry.instrumentDurableObjectWithSentry(
+  sentryOptions('durable-object'),
+  SpaceLockClass as any,
+);
+export { InstrumentedSpaceLock as SpaceLock };
+
+const handler = {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
     if (!url.pathname.startsWith('/api/')) {
@@ -34,6 +65,10 @@ export default {
     } catch (e) {
       const incidentId = genId('inc');
       console.error(`[worker-error] ${incidentId}`, e);
+      // Route errors are caught here and returned as a friendly 500, so they
+      // never propagate to withSentry's fetch instrumentation — report them
+      // explicitly, tagged with the incident id for cross-referencing.
+      Sentry.captureException(e, { tags: { incident_id: incidentId } });
       try {
         await env.DB.prepare(
           `INSERT INTO error_logs (id, incident_id, source, message, stack, url, created_at)
@@ -50,7 +85,11 @@ export default {
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(runScheduled(env));
   },
-};
+} satisfies ExportedHandler<Env>;
+
+// Wrap the FULL { fetch, scheduled } handler — not just fetch — so cron
+// (runScheduled) failures are captured too, not only request errors.
+export default Sentry.withSentry(sentryOptions('worker'), handler);
 
 async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): Promise<Response> {
   const path = url.pathname;

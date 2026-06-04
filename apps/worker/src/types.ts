@@ -22,6 +22,7 @@ export interface Env {
   QBO_CLIENT_ID?: string;
   QBO_CLIENT_SECRET?: string;
   TURNSTILE_SECRET_KEY?: string;
+  SENTRY_DSN?: string; // server-side Sentry DSN (worker + cron + DO errors)
 }
 
 /** Cloudflare Email Service binding surface (Email Sending). */

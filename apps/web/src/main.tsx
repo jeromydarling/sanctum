@@ -6,8 +6,10 @@ import { App } from './App.js';
 import { AuthProvider } from './lib/auth.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { installGlobalErrorHandlers } from './lib/errors.js';
+import { initSentry } from './lib/sentry.js';
 import './index.css';
 
+initSentry();
 installGlobalErrorHandlers();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

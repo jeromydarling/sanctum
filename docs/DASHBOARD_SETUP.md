@@ -96,20 +96,27 @@ Do these in order, pausing for me to confirm before each "Save":
 3. Email: Go to the sanctum.garden zone → Email. Enable Email Routing, then enable
    Email Sending (Cloudflare Email Service). Add/verify the email DNS records it suggests.
 
-4. Worker secrets: Go to Workers & Pages → "sanctum" → Settings → Variables and Secrets.
+4. Turnstile (bot protection): Go to Turnstile → Add widget. Name it "Sanctum",
+   set Hostnames to sanctum.garden (also add localhost if I test locally), mode
+   Managed, and Save. Read me back the FULL site key (it's public) and tell me the
+   last 4 characters of the secret key. I'll put the site key in TURNSTILE_SITE_KEY
+   in wrangler.jsonc; the secret key goes in Worker secrets in the next step.
+
+5. Worker secrets: Go to Workers & Pages → "sanctum" → Settings → Variables and Secrets.
    Add these as ENCRYPTED secrets (I will paste each value myself):
      - STRIPE_SECRET_KEY        (my Stripe TEST secret key, starts with sk_test_)
-     - STRIPE_WEBHOOK_SECRET    (from the webhook I create in step 5, starts with whsec_)
+     - STRIPE_WEBHOOK_SECRET    (from the webhook I create in step 6, starts with whsec_)
+     - TURNSTILE_SECRET_KEY     (the secret key from the Turnstile widget in step 4)
    Do NOT add AUTH_SECRET — the app generates it itself.
 
-5. Stripe webhook: In the Stripe dashboard (test mode) → Developers → Webhooks → add an
+6. Stripe webhook: In the Stripe dashboard (test mode) → Developers → Webhooks → add an
    endpoint at https://sanctum.garden/api/stripe/webhooks, subscribed to:
    account.updated, checkout.session.completed, customer.subscription.updated, customer.subscription.deleted, payment_intent.payment_failed.
    Copy the signing secret (whsec_…) and use it for STRIPE_WEBHOOK_SECRET above.
 
 After each step, tell me what changed and the last 4 characters of any secret I entered.
-Remind me to uncomment the r2_buckets, images, and send_email bindings in wrangler.jsonc
-and push, so the bindings attach on the next deploy.
+Remind me to uncomment the r2_buckets, images, and send_email bindings in wrangler.jsonc,
+add the Turnstile site key to TURNSTILE_SITE_KEY, and push so it all attaches on deploy.
 ```
 
 ---

@@ -33,6 +33,7 @@ const OperatorCompliance = lazy(() => import('./pages/operator/Compliance.js'));
 const OperatorPricing = lazy(() => import('./pages/operator/Pricing.js'));
 const OperatorInvoices = lazy(() => import('./pages/operator/Invoices.js'));
 const OperatorRenters = lazy(() => import('./pages/operator/Renters.js'));
+const OperatorRenterDetail = lazy(() => import('./pages/operator/RenterDetail.js'));
 const OperatorLeads = lazy(() => import('./pages/operator/Leads.js'));
 const OperatorAnalytics = lazy(() => import('./pages/operator/Analytics.js'));
 const OperatorFinancials = lazy(() => import('./pages/operator/Financials.js'));
@@ -116,6 +117,7 @@ export function App() {
           <Route path="pricing" element={<OperatorPricing />} />
           <Route path="invoices" element={<OperatorInvoices />} />
           <Route path="renters" element={<OperatorRenters />} />
+          <Route path="renters/:id" element={<OperatorRenterDetail />} />
           <Route path="leads" element={<OperatorLeads />} />
           <Route path="analytics" element={<OperatorAnalytics />} />
           <Route path="financials" element={<OperatorFinancials />} />

@@ -286,11 +286,13 @@ export interface PricingRule {
   updated_at: ISODate;
 }
 
-export interface TenantInteraction {
+export interface CrmInteraction {
   id: string;
   facility_id: string;
-  lease_id: string;
-  kind: 'note' | 'call' | 'email' | 'visit' | 'task';
+  /** 'lease' (a recurring tenant) or 'renter' (a one-off group). */
+  subject_kind: 'lease' | 'renter';
+  subject_id: string;
+  kind: 'note' | 'call' | 'email' | 'visit' | 'reminder';
   body: string;
   due_at: string | null;
   done: Bool;
@@ -336,7 +338,7 @@ export type GenericTable =
   | 'pricing_rules'
   | 'leases'
   | 'networks'
-  | 'tenant_interactions';
+  | 'crm_interactions';
 
 /** Tables that bypass the generic upsert (money/conflict-sensitive). */
 export type ProtectedTable = 'bookings' | 'invoices';

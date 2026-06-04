@@ -10,10 +10,10 @@ import { notifyError } from '../../lib/errors.js';
 import type { Lead } from '@sanctum/shared';
 
 const STAGES: { key: Lead['stage']; label: string; tone: 'warning' | 'primary' | 'success' | 'neutral' }[] = [
-  { key: 'inquiry', label: 'Inquiry', tone: 'warning' },
-  { key: 'tour', label: 'Tour', tone: 'primary' },
-  { key: 'booked', label: 'Booked', tone: 'success' },
-  { key: 'lost', label: 'Lost', tone: 'neutral' },
+  { key: 'inquiry', label: 'Reached out', tone: 'warning' },
+  { key: 'tour', label: 'Visiting', tone: 'primary' },
+  { key: 'booked', label: 'Welcomed', tone: 'success' },
+  { key: 'lost', label: 'Not this time', tone: 'neutral' },
 ];
 
 export default function Leads() {
@@ -30,7 +30,7 @@ export default function Leads() {
 
   return (
     <div>
-      <PageHeader title="Inquiries" subtitle="Turn interest into booked events — inquiry to tour to booked." />
+      <PageHeader title="Inquiries" subtitle="Everyone who's reached out — from first hello to a warm welcome. No one falls through the cracks." />
       {leads.length === 0 ? (
         <EmptyState icon={<Megaphone className="h-8 w-8" />} title="No inquiries yet" body="Messages from your public page land here so nothing slips through." />
       ) : (

@@ -77,7 +77,7 @@ export async function handleHydrate(env: Env, auth: AuthContext): Promise<Respon
     pricing_rules: [],
     leases: [],
     networks: [],
-    tenant_interactions: [],
+    crm_interactions: [],
   };
 
   // Own profile + notifications always.
@@ -111,9 +111,21 @@ export async function handleHydrate(env: Env, auth: AuthContext): Promise<Respon
       out.availability_blocks = await selectAll(env, 'availability_blocks', `facility_id IN (${ph})`, facIds);
       out.pricing_rules = await selectAll(env, 'pricing_rules', `facility_id IN (${ph})`, facIds);
       out.leases = await selectAll(env, 'leases', `facility_id IN (${ph})`, facIds);
-      out.tenant_interactions = await selectAll(env, 'tenant_interactions', `facility_id IN (${ph})`, facIds);
+      out.crm_interactions = await selectAll(env, 'crm_interactions', `facility_id IN (${ph})`, facIds);
       out.bookings = await raw(env, 'bookings', `facility_id IN (${ph})`, facIds);
       out.invoices = await raw(env, 'invoices', `facility_id IN (${ph})`, facIds);
+
+      // Include the contact records of renters who booked this operator's spaces —
+      // legitimately theirs to manage. Scoped to those renters only, never all profiles.
+      const renterIds = unique([
+        ...out.bookings.map((b) => (b as Record<string, unknown>).renter_id as string),
+        ...out.compliance_docs.map((c) => (c as Record<string, unknown>).renter_id as string),
+      ]).filter((rid) => rid && rid !== auth.id);
+      if (renterIds.length) {
+        const rph = renterIds.map(() => '?').join(',');
+        const renterProfiles = await selectAll(env, 'profiles', `id IN (${rph})`, renterIds);
+        out.profiles = [...out.profiles, ...renterProfiles];
+      }
     }
     return json(out);
   }

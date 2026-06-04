@@ -31,20 +31,20 @@ export default function Tenants() {
     .filter((l) => l.status === 'active')
     .reduce((s, l) => s + leaseMonthlyAmountCents(l, now.getUTCFullYear(), now.getUTCMonth()), 0);
   const leaseIds = new Set(leases.map((l) => l.id));
-  const openTasksByLease = (leaseId: string) => data.tenant_interactions.filter((t) => t.lease_id === leaseId && t.kind === 'task' && !t.done).length;
-  const dueFollowUps = data.tenant_interactions.filter((t) => leaseIds.has(t.lease_id) && t.kind === 'task' && !t.done).length;
+  const openTasksByLease = (leaseId: string) => data.crm_interactions.filter((t) => t.subject_kind === 'lease' && t.subject_id === leaseId && t.kind === 'reminder' && !t.done).length;
+  const dueFollowUps = data.crm_interactions.filter((t) => t.subject_kind === 'lease' && leaseIds.has(t.subject_id) && t.kind === 'reminder' && !t.done).length;
 
   return (
     <div>
       <PageHeader
         title="Tenants & recurring"
-        subtitle="Weekly groups, classes, and long-term tenants — billed automatically every month."
+        subtitle="The groups who make your spaces a second home — held on your calendar and invoiced each month, so you can focus on the relationship."
         action={<Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Add tenant</Button>}
       />
       <div className="mb-5 grid gap-4 sm:grid-cols-3">
-        <Stat label="Monthly recurring revenue" value={formatCents(monthlyRecurring)} sub="auto-invoiced" tone="success" />
+        <Stat label="From tenants each month" value={formatCents(monthlyRecurring)} sub="invoiced automatically" tone="success" />
         <Stat label="Active tenants" value={leases.filter((l) => l.status === 'active').length} tone="primary" />
-        <Stat label="Follow-ups due" value={dueFollowUps} sub="open tasks" tone={dueFollowUps ? 'gold' : 'neutral'} />
+        <Stat label="Reminders" value={dueFollowUps} sub="people to check in with" tone={dueFollowUps ? 'gold' : 'neutral'} />
       </div>
 
       {leases.length === 0 ? (
@@ -64,7 +64,7 @@ export default function Tenants() {
                   </Link>
                   <div className="flex flex-col items-end gap-1">
                     <Badge tone={l.status === 'active' ? 'success' : l.status === 'paused' ? 'warning' : 'neutral'}>{l.status}</Badge>
-                    {openTasks > 0 && <Badge tone="gold">{openTasks} follow-up{openTasks !== 1 ? 's' : ''}</Badge>}
+                    {openTasks > 0 && <Badge tone="gold">{openTasks} reminder{openTasks !== 1 ? 's' : ''}</Badge>}
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-1">
@@ -78,7 +78,7 @@ export default function Tenants() {
                 </div>
                 {next && <p className="mt-2 flex items-center gap-1 text-xs text-stone-warm"><CalendarClock className="h-3.5 w-3.5" /> Next: {formatDate(next.start)} · {formatTime(next.start)}</p>}
                 <div className="mt-3 flex gap-2">
-                  <Button size="sm" variant="outline" full asLink={`/operator/tenants/${l.id}`}>Open CRM</Button>
+                  <Button size="sm" variant="outline" full asLink={`/operator/tenants/${l.id}`}>Open</Button>
                   <Button size="sm" variant="ghost" onClick={() => setEditing(l)}><Pencil className="h-3.5 w-3.5" /></Button>
                   <Button size="sm" variant="ghost" className="text-danger hover:bg-danger/5" onClick={() => remove('leases', l.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                 </div>

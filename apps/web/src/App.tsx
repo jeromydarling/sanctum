@@ -34,6 +34,7 @@ const OperatorInvoices = lazy(() => import('./pages/operator/Invoices.js'));
 const OperatorRenters = lazy(() => import('./pages/operator/Renters.js'));
 const OperatorLeads = lazy(() => import('./pages/operator/Leads.js'));
 const OperatorAnalytics = lazy(() => import('./pages/operator/Analytics.js'));
+const OperatorFinancials = lazy(() => import('./pages/operator/Financials.js'));
 const OperatorReviews = lazy(() => import('./pages/operator/Reviews.js'));
 const OperatorAssistant = lazy(() => import('./pages/operator/Assistant.js'));
 const OperatorSettings = lazy(() => import('./pages/operator/Settings.js'));
@@ -115,6 +116,7 @@ export function App() {
           <Route path="renters" element={<OperatorRenters />} />
           <Route path="leads" element={<OperatorLeads />} />
           <Route path="analytics" element={<OperatorAnalytics />} />
+          <Route path="financials" element={<OperatorFinancials />} />
           <Route path="reviews" element={<OperatorReviews />} />
           <Route path="assistant" element={<OperatorAssistant />} />
           <Route path="network" element={<OperatorNetwork />} />

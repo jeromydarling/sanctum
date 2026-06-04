@@ -5,7 +5,7 @@
  */
 import type {
   Profile, Facility, Space, Resource, Booking, ComplianceDoc,
-  Invoice, Review, Lead, Notification, EventMicrosite, AvailabilityBlock, PricingRule, Lease,
+  Invoice, Review, Lead, Notification, EventMicrosite, AvailabilityBlock, PricingRule, Lease, Network,
 } from '@sanctum/shared';
 
 export interface StoreData {
@@ -23,6 +23,7 @@ export interface StoreData {
   availability_blocks: AvailabilityBlock[];
   pricing_rules: PricingRule[];
   leases: Lease[];
+  networks: Network[];
 }
 
 const NOW = '2026-06-01T12:00:00.000Z';
@@ -65,7 +66,7 @@ export function freshStore(): StoreData {
     plan: 'growth', subscription_status: 'active', is_listed: 1, requires_approval: 0,
     approval_lead_days: 3, cancellation_policy: 'Full refund up to 7 days before your event.',
     facility_use_agreement_url: null, require_coi: 1, min_coi_amount_cents: 100000000,
-    tax_exempt_id: null, created_at: NOW, updated_at: NOW,
+    tax_exempt_id: null, network_id: 'net-tcfn', created_at: NOW, updated_at: NOW,
   };
 
   const spaces: Space[] = [
@@ -184,10 +185,16 @@ export function freshStore(): StoreData {
     },
   ];
 
+  const networks: Network[] = [{
+    id: 'net-tcfn', owner_id: 'usr-demo-operator', name: 'Twin Cities Faith Network',
+    slug: 'twin-cities-faith-network', description: 'A network of welcoming community spaces across the Twin Cities — open doors, shared flourishing.',
+    brand_primary: '#3b5bdb', logo_url: null, created_at: NOW, updated_at: NOW,
+  }];
+
   return {
     profiles, facilities: [facility], spaces, resources, bookings,
     compliance_docs, invoices, reviews, leads, notifications, event_microsites,
-    availability_blocks: [], pricing_rules, leases,
+    availability_blocks: [], pricing_rules, leases, networks,
   };
 }
 

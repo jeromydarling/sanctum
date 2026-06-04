@@ -76,6 +76,7 @@ export async function handleHydrate(env: Env, auth: AuthContext): Promise<Respon
     availability_blocks: [],
     pricing_rules: [],
     leases: [],
+    networks: [],
   };
 
   // Own profile + notifications always.
@@ -83,7 +84,8 @@ export async function handleHydrate(env: Env, auth: AuthContext): Promise<Respon
   out.notifications = await selectAll(env, 'notifications', 'user_id = ?', [auth.id]);
 
   if (auth.role === 'admin') {
-    for (const t of ['facilities', 'spaces', 'resources', 'reviews', 'leads', 'event_microsites'] as GenericTable[]) {
+    out.profiles = await selectAll(env, 'profiles');
+    for (const t of ['facilities', 'spaces', 'resources', 'reviews', 'leads', 'event_microsites', 'networks'] as GenericTable[]) {
       out[t] = await selectAll(env, t);
     }
     out.bookings = await raw(env, 'bookings');
@@ -95,6 +97,7 @@ export async function handleHydrate(env: Env, auth: AuthContext): Promise<Respon
   if (auth.role === 'operator' || auth.role === 'staff') {
     const facilities = await selectAll(env, 'facilities', 'operator_id = ?', [auth.id]);
     out.facilities = facilities;
+    out.networks = await selectAll(env, 'networks', 'owner_id = ?', [auth.id]);
     const facIds = facilities.map((f) => f.id as string);
     if (facIds.length) {
       const ph = facIds.map(() => '?').join(',');

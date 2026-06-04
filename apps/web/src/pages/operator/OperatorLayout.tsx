@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, CalendarDays, Inbox, Building2, ShieldCheck,
-  FileText, Users, Sparkles, BarChart3, Settings, Megaphone, Star, Tag, Repeat,
+  FileText, Users, Sparkles, BarChart3, Settings, Megaphone, Star, Tag, Repeat, Network,
 } from 'lucide-react';
 import { DashShell, type NavItem } from '../../components/dash/DashShell.js';
 
@@ -18,6 +18,7 @@ const NAV: NavItem[] = [
   { to: '/operator/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/operator/reviews', label: 'Reviews', icon: Star },
   { to: '/operator/assistant', label: 'AI Assistant', icon: Sparkles },
+  { to: '/operator/network', label: 'Network', icon: Network },
   { to: '/operator/settings', label: 'Settings', icon: Settings },
 ];
 

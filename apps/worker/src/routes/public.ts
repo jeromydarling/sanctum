@@ -69,6 +69,27 @@ export async function handleFacilityBySlug(env: Env, slug: string): Promise<Resp
   });
 }
 
+/** GET /api/public/network/:slug — white-label network page with its facilities. */
+export async function handleNetworkBySlug(env: Env, slug: string): Promise<Response> {
+  const network = await env.DB.prepare('SELECT id, name, slug, description, brand_primary, logo_url FROM networks WHERE slug = ?')
+    .bind(slug).first<Record<string, unknown>>();
+  if (!network) return err('Network not found', 404);
+
+  const facsRes = await env.DB.prepare('SELECT * FROM facilities WHERE network_id = ? AND is_listed = 1').bind(network.id).all<Record<string, unknown>>();
+  const facilities = facsRes.results || [];
+  const facIds = facilities.map((f) => f.id as string);
+  let spaces: Record<string, unknown>[] = [];
+  if (facIds.length) {
+    const ph = facIds.map(() => '?').join(',');
+    const res = await env.DB.prepare(`SELECT * FROM spaces WHERE is_active = 1 AND facility_id IN (${ph})`).bind(...facIds).all<Record<string, unknown>>();
+    spaces = (res.results || []).map((s) => decodeRow(TABLES.spaces, s));
+  }
+  return json({
+    network,
+    facilities: facilities.map((f) => publicFacility(f, spaces.filter((s) => s.facility_id === f.id))),
+  });
+}
+
 /** GET /api/public/event/:slug — published event microsite. */
 export async function handleEventBySlug(env: Env, slug: string): Promise<Response> {
   const site = await env.DB.prepare(

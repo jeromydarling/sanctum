@@ -29,8 +29,12 @@ export const TABLES: Record<GenericTable, TableDef> = {
       'plan', 'subscription_status', 'is_listed', 'requires_approval',
       'approval_lead_days', 'cancellation_policy', 'facility_use_agreement_url',
       'require_coi', 'min_coi_amount_cents', 'tax_exempt_id', 'use_agreement_text',
-      'created_at', 'updated_at',
+      'network_id', 'created_at', 'updated_at',
     ],
+    jsonColumns: [],
+  },
+  networks: {
+    columns: ['id', 'owner_id', 'name', 'slug', 'description', 'brand_primary', 'logo_url', 'created_at', 'updated_at'],
     jsonColumns: [],
   },
   spaces: {

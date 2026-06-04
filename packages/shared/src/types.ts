@@ -64,11 +64,24 @@ export interface Facility {
   use_agreement_text?: string | null;
   ical_token?: string | null;
   external_ical_url?: string | null;
+  network_id?: string | null;
   created_at: ISODate;
   updated_at: ISODate;
 }
 
 export type PricingMode = 'standard' | 'donation' | 'free';
+
+export interface Network {
+  id: string;
+  owner_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  brand_primary: string;
+  logo_url: string | null;
+  created_at: ISODate;
+  updated_at: ISODate;
+}
 
 export interface Space {
   id: string;
@@ -308,7 +321,8 @@ export type GenericTable =
   | 'event_microsites'
   | 'availability_blocks'
   | 'pricing_rules'
-  | 'leases';
+  | 'leases'
+  | 'networks';
 
 /** Tables that bypass the generic upsert (money/conflict-sensitive). */
 export type ProtectedTable = 'bookings' | 'invoices';

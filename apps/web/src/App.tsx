@@ -12,6 +12,7 @@ const Find = lazy(() => import('./pages/marketing/Find.js'));
 const Privacy = lazy(() => import('./pages/marketing/Privacy.js'));
 const PublicFacility = lazy(() => import('./pages/marketing/PublicFacility.js'));
 const EventMicrosite = lazy(() => import('./pages/marketing/EventMicrosite.js'));
+const NetworkPage = lazy(() => import('./pages/marketing/NetworkPage.js'));
 
 // Auth
 const Login = lazy(() => import('./pages/auth/Login.js'));
@@ -36,6 +37,7 @@ const OperatorAnalytics = lazy(() => import('./pages/operator/Analytics.js'));
 const OperatorReviews = lazy(() => import('./pages/operator/Reviews.js'));
 const OperatorAssistant = lazy(() => import('./pages/operator/Assistant.js'));
 const OperatorSettings = lazy(() => import('./pages/operator/Settings.js'));
+const OperatorNetwork = lazy(() => import('./pages/operator/Network.js'));
 const Onboarding = lazy(() => import('./pages/operator/Onboarding.js'));
 
 // Renter
@@ -55,6 +57,7 @@ const AdminLayout = lazy(() => import('./pages/admin/AdminLayout.js'));
 const AdminOverview = lazy(() => import('./pages/admin/Overview.js'));
 const AdminFacilities = lazy(() => import('./pages/admin/Facilities.js'));
 const AdminUsers = lazy(() => import('./pages/admin/Users.js'));
+const AdminNetworks = lazy(() => import('./pages/admin/Networks.js'));
 const AdminAnnouncements = lazy(() => import('./pages/admin/Announcements.js'));
 const AdminErrors = lazy(() => import('./pages/admin/Errors.js'));
 
@@ -92,6 +95,7 @@ export function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/c/:slug" element={<PublicFacility />} />
         <Route path="/e/:slug" element={<EventMicrosite />} />
+        <Route path="/n/:slug" element={<NetworkPage />} />
 
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
@@ -113,6 +117,7 @@ export function App() {
           <Route path="analytics" element={<OperatorAnalytics />} />
           <Route path="reviews" element={<OperatorReviews />} />
           <Route path="assistant" element={<OperatorAssistant />} />
+          <Route path="network" element={<OperatorNetwork />} />
           <Route path="settings" element={<OperatorSettings />} />
         </Route>
 
@@ -133,6 +138,7 @@ export function App() {
           <Route index element={<AdminOverview />} />
           <Route path="facilities" element={<AdminFacilities />} />
           <Route path="users" element={<AdminUsers />} />
+          <Route path="networks" element={<AdminNetworks />} />
           <Route path="announcements" element={<AdminAnnouncements />} />
           <Route path="errors" element={<AdminErrors />} />
         </Route>

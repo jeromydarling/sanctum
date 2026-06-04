@@ -10,7 +10,7 @@ import { handleSignup, handleLogin, handleMe, handleForgotPassword, handleResetP
 import { handleUpsert, handleDelete, handleHydrate } from './routes/data.js';
 import { handleCreateBooking, handleBookingStatus } from './routes/bookings.js';
 import { handleCreateInvoice, handleInvoiceAction } from './routes/invoices.js';
-import { handleDiscover, handleFacilityBySlug, handleEventBySlug, handleInquiry } from './routes/public.js';
+import { handleDiscover, handleFacilityBySlug, handleEventBySlug, handleInquiry, handleNetworkBySlug } from './routes/public.js';
 import { handleAITool, handleAIImage, handleOnboard } from './routes/ai.js';
 import { handleUpload, handleFileServe } from './routes/files.js';
 import { handleTelemetry, handleExport, handleDeleteAccount } from './routes/misc.js';
@@ -78,6 +78,9 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   }
   if (seg[0] === 'public' && seg[1] === 'event' && seg[2] && method === 'GET') {
     return handleEventBySlug(env, decodeURIComponent(seg[2]));
+  }
+  if (seg[0] === 'public' && seg[1] === 'network' && seg[2] && method === 'GET') {
+    return handleNetworkBySlug(env, decodeURIComponent(seg[2]));
   }
   if (path === '/api/telemetry/error' && method === 'POST') return handleTelemetry(env, req);
   if (path === '/api/stripe/webhooks' && method === 'POST') return handleWebhook(env, req);

@@ -66,6 +66,8 @@ export async function canWrite(
       return row.id === auth.id;
     case 'facilities':
       return row.operator_id === auth.id;
+    case 'networks':
+      return row.owner_id === auth.id;
     case 'notifications':
       return row.user_id === auth.id;
     case 'leads':

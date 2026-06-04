@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Plus, Repeat, Pencil, Trash2, CalendarClock } from 'lucide-react';
 import { PageHeader } from '../../components/dash/DashShell.js';
@@ -29,6 +30,9 @@ export default function Tenants() {
   const monthlyRecurring = leases
     .filter((l) => l.status === 'active')
     .reduce((s, l) => s + leaseMonthlyAmountCents(l, now.getUTCFullYear(), now.getUTCMonth()), 0);
+  const leaseIds = new Set(leases.map((l) => l.id));
+  const openTasksByLease = (leaseId: string) => data.tenant_interactions.filter((t) => t.lease_id === leaseId && t.kind === 'task' && !t.done).length;
+  const dueFollowUps = data.tenant_interactions.filter((t) => leaseIds.has(t.lease_id) && t.kind === 'task' && !t.done).length;
 
   return (
     <div>
@@ -40,7 +44,7 @@ export default function Tenants() {
       <div className="mb-5 grid gap-4 sm:grid-cols-3">
         <Stat label="Monthly recurring revenue" value={formatCents(monthlyRecurring)} sub="auto-invoiced" tone="success" />
         <Stat label="Active tenants" value={leases.filter((l) => l.status === 'active').length} tone="primary" />
-        <Stat label="Spaces with tenants" value={new Set(leases.map((l) => l.space_id)).size} />
+        <Stat label="Follow-ups due" value={dueFollowUps} sub="open tasks" tone={dueFollowUps ? 'gold' : 'neutral'} />
       </div>
 
       {leases.length === 0 ? (
@@ -50,14 +54,18 @@ export default function Tenants() {
           {leases.map((l) => {
             const next = leaseOccurrences(l, now, new Date(now.getTime() + 14 * 86400000))[0];
             const monthly = leaseMonthlyAmountCents(l, now.getUTCFullYear(), now.getUTCMonth());
+            const openTasks = openTasksByLease(l.id);
             return (
               <Card key={l.id}><CardBody>
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h3 className="font-semibold">{l.title}</h3>
+                  <Link to={`/operator/tenants/${l.id}`} className="group">
+                    <h3 className="font-semibold group-hover:text-primary">{l.title}</h3>
                     <p className="text-xs text-stone-warm">{spaceName(data, l.space_id)}{l.tenant_name ? ` · ${l.tenant_name}` : ''}</p>
+                  </Link>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge tone={l.status === 'active' ? 'success' : l.status === 'paused' ? 'warning' : 'neutral'}>{l.status}</Badge>
+                    {openTasks > 0 && <Badge tone="gold">{openTasks} follow-up{openTasks !== 1 ? 's' : ''}</Badge>}
                   </div>
-                  <Badge tone={l.status === 'active' ? 'success' : l.status === 'paused' ? 'warning' : 'neutral'}>{l.status}</Badge>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-1">
                   {l.cadence !== 'monthly' ? l.weekdays.map((w) => <span key={w} className="rounded bg-primary-50 px-1.5 py-0.5 text-[11px] font-medium text-primary-700">{DOW[w]}</span>)
@@ -70,7 +78,8 @@ export default function Tenants() {
                 </div>
                 {next && <p className="mt-2 flex items-center gap-1 text-xs text-stone-warm"><CalendarClock className="h-3.5 w-3.5" /> Next: {formatDate(next.start)} · {formatTime(next.start)}</p>}
                 <div className="mt-3 flex gap-2">
-                  <Button size="sm" variant="outline" full onClick={() => setEditing(l)}><Pencil className="h-3.5 w-3.5" /> Edit</Button>
+                  <Button size="sm" variant="outline" full asLink={`/operator/tenants/${l.id}`}>Open CRM</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(l)}><Pencil className="h-3.5 w-3.5" /></Button>
                   <Button size="sm" variant="ghost" className="text-danger hover:bg-danger/5" onClick={() => remove('leases', l.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                 </div>
               </CardBody></Card>
@@ -86,7 +95,7 @@ export default function Tenants() {
   );
 }
 
-function LeaseEditor({ facilityId, spaces, lease, onClose }: { facilityId: string; spaces: import('@sanctum/shared').Space[]; lease: Lease | null; onClose: () => void }) {
+export function LeaseEditor({ facilityId, spaces, lease, onClose }: { facilityId: string; spaces: import('@sanctum/shared').Space[]; lease: Lease | null; onClose: () => void }) {
   const isNew = !lease;
   const [form, setForm] = useState<Lease>(lease || blankLease(facilityId, spaces[0]?.id || ''));
   const [busy, setBusy] = useState(false);

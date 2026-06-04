@@ -286,6 +286,19 @@ export interface PricingRule {
   updated_at: ISODate;
 }
 
+export interface TenantInteraction {
+  id: string;
+  facility_id: string;
+  lease_id: string;
+  kind: 'note' | 'call' | 'email' | 'visit' | 'task';
+  body: string;
+  due_at: string | null;
+  done: Bool;
+  created_by: string | null;
+  created_at: ISODate;
+  updated_at: ISODate;
+}
+
 export interface Lease {
   id: string;
   facility_id: string;
@@ -322,7 +335,8 @@ export type GenericTable =
   | 'availability_blocks'
   | 'pricing_rules'
   | 'leases'
-  | 'networks';
+  | 'networks'
+  | 'tenant_interactions';
 
 /** Tables that bypass the generic upsert (money/conflict-sensitive). */
 export type ProtectedTable = 'bookings' | 'invoices';

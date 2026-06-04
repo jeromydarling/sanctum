@@ -6,6 +6,7 @@
 import type {
   Profile, Facility, Space, Resource, Booking, ComplianceDoc,
   Invoice, Review, Lead, Notification, EventMicrosite, AvailabilityBlock, PricingRule, Lease, Network,
+  TenantInteraction,
 } from '@sanctum/shared';
 
 export interface StoreData {
@@ -24,6 +25,7 @@ export interface StoreData {
   pricing_rules: PricingRule[];
   leases: Lease[];
   networks: Network[];
+  tenant_interactions: TenantInteraction[];
 }
 
 const NOW = '2026-06-01T12:00:00.000Z';
@@ -191,10 +193,16 @@ export function freshStore(): StoreData {
     brand_primary: '#3b5bdb', logo_url: null, created_at: NOW, updated_at: NOW,
   }];
 
+  const tenant_interactions: TenantInteraction[] = [
+    { id: 'ti-1', facility_id: FAC, lease_id: 'lease-daycare', kind: 'note', body: 'Signed a 12-month agreement. Lovely team — they keep Classroom 1 spotless.', due_at: null, done: 0, created_by: 'usr-demo-operator', created_at: '2026-01-05T15:00:00.000Z', updated_at: '2026-01-05T15:00:00.000Z' },
+    { id: 'ti-2', facility_id: FAC, lease_id: 'lease-daycare', kind: 'call', body: 'Maria called about adding Fridays in the fall. Asked her to send dates.', due_at: null, done: 0, created_by: 'usr-demo-operator', created_at: '2026-05-12T16:30:00.000Z', updated_at: '2026-05-12T16:30:00.000Z' },
+    { id: 'ti-3', facility_id: FAC, lease_id: 'lease-daycare', kind: 'task', body: 'Follow up on the fall Friday expansion + renewal.', due_at: '2026-06-20T12:00:00.000Z', done: 0, created_by: 'usr-demo-operator', created_at: '2026-05-12T16:31:00.000Z', updated_at: '2026-05-12T16:31:00.000Z' },
+  ];
+
   return {
     profiles, facilities: [facility], spaces, resources, bookings,
     compliance_docs, invoices, reviews, leads, notifications, event_microsites,
-    availability_blocks: [], pricing_rules, leases, networks,
+    availability_blocks: [], pricing_rules, leases, networks, tenant_interactions,
   };
 }
 

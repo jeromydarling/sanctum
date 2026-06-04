@@ -123,6 +123,10 @@ export const TABLES: Record<GenericTable, TableDef> = {
     ],
     jsonColumns: ['weekdays'],
   },
+  tenant_interactions: {
+    columns: ['id', 'facility_id', 'lease_id', 'kind', 'body', 'due_at', 'done', 'created_by', 'created_at', 'updated_at'],
+    jsonColumns: [],
+  },
 };
 
 export function isGenericTable(t: string): t is GenericTable {

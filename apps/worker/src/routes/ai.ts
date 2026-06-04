@@ -108,6 +108,114 @@ async function runText(env: Env, system: string, prompt: string): Promise<string
   return null;
 }
 
+interface OnboardSuggestion {
+  description: string;
+  denomination: string | null;
+  spaces: { name: string; space_type: string; capacity_persons: number; hourly_rate_cents: number; description: string }[];
+}
+
+const SPACE_TYPE_HINTS: Record<string, string> = {
+  hall: 'fellowship_hall', fellowship: 'fellowship_hall', gym: 'gym', gymnasium: 'gym',
+  sanctuary: 'sanctuary', chapel: 'chapel', classroom: 'classroom', class: 'classroom',
+  kitchen: 'kitchen', nursery: 'nursery', parking: 'parking', lot: 'parking',
+  office: 'office', room: 'office', outdoor: 'outdoor', field: 'outdoor', lawn: 'outdoor',
+};
+
+/** POST /api/ai/onboard { url?, description?, name? } -> a draft listing the operator reviews. */
+export async function handleOnboard(env: Env, req: Request, auth: AuthContext | null): Promise<Response> {
+  const ip = clientIP(req);
+  const gate = await meter(env, auth?.id || null, ip, 'onboard');
+  if (!gate.ok) return json({ demo: true, limited: true });
+
+  const body = await readJson<{ url?: string; description?: string; name?: string }>(req);
+  let context = (body.description || '').slice(0, 4000);
+
+  // If a website URL is given, fetch and strip it to plain text for context.
+  if (body.url && /^https?:\/\//i.test(body.url)) {
+    try {
+      const res = await fetch(body.url, { headers: { 'User-Agent': 'SanctumBot/1.0' } });
+      if (res.ok) {
+        const html = await res.text();
+        const text = html
+          .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+          .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&[a-z]+;/gi, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        context = `${context}\n\nWebsite content:\n${text}`.slice(0, 6000);
+      }
+    } catch { /* ignore fetch errors, fall back to description */ }
+  }
+
+  const fallback = heuristicOnboard(body.name || 'Your Community', context);
+
+  if (!env.AI) return json({ suggestion: fallback, demo: true });
+
+  const system = 'You help a community building list its rentable spaces. Given notes about an organization, respond with ONLY a JSON object (no prose, no markdown) of the form: {"description": string, "denomination": string|null, "spaces": [{"name": string, "space_type": one of ["sanctuary","fellowship_hall","classroom","kitchen","gym","outdoor","parking","office","nursery","chapel","other"], "capacity_persons": number, "hourly_rate_cents": number, "description": string}]}. Suggest 2-5 realistic spaces with sensible US rental rates in cents. The description is a warm 2-3 sentence public intro.';
+  const prompt = `Organization name: ${body.name || 'Unknown'}\nNotes: ${context || 'A community building with spaces to rent.'}`;
+  const raw = await runText(env, system, prompt);
+  const parsed = raw ? safeParseOnboard(raw) : null;
+  return json({ suggestion: parsed || fallback });
+}
+
+function safeParseOnboard(raw: string): OnboardSuggestion | null {
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    const obj = JSON.parse(match[0]) as Partial<OnboardSuggestion>;
+    if (!Array.isArray(obj.spaces)) return null;
+    const valid = ['sanctuary', 'fellowship_hall', 'classroom', 'kitchen', 'gym', 'outdoor', 'parking', 'office', 'nursery', 'chapel', 'other'];
+    return {
+      description: String(obj.description || '').slice(0, 800),
+      denomination: obj.denomination ? String(obj.denomination).slice(0, 80) : null,
+      spaces: obj.spaces.slice(0, 6).map((s) => ({
+        name: String(s.name || 'Space').slice(0, 80),
+        space_type: valid.includes(String(s.space_type)) ? String(s.space_type) : 'other',
+        capacity_persons: Math.max(1, Math.min(5000, Math.round(Number(s.capacity_persons) || 30))),
+        hourly_rate_cents: Math.max(0, Math.min(500000, Math.round(Number(s.hourly_rate_cents) || 5000))),
+        description: String(s.description || '').slice(0, 400),
+      })),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Deterministic fallback when AI is unavailable: infer spaces from keywords. */
+function heuristicOnboard(name: string, context: string): OnboardSuggestion {
+  const lower = context.toLowerCase();
+  const found = new Map<string, string>();
+  for (const [kw, type] of Object.entries(SPACE_TYPE_HINTS)) {
+    if (lower.includes(kw) && !found.has(type)) found.set(type, kw);
+  }
+  if (found.size === 0) {
+    found.set('fellowship_hall', 'hall');
+    found.set('classroom', 'classroom');
+  }
+  const defaults: Record<string, { cap: number; rate: number; label: string; desc: string }> = {
+    fellowship_hall: { cap: 150, rate: 10000, label: 'Fellowship Hall', desc: 'A spacious hall for receptions, dinners, and community gatherings.' },
+    sanctuary: { cap: 200, rate: 12000, label: 'Sanctuary', desc: 'A beautiful space for ceremonies, concerts, and services.' },
+    chapel: { cap: 60, rate: 8000, label: 'Chapel', desc: 'An intimate space with warm light and fine acoustics.' },
+    classroom: { cap: 25, rate: 3500, label: 'Classroom', desc: 'A flexible room for classes, meetings, and workshops.' },
+    kitchen: { cap: 10, rate: 7000, label: 'Commercial Kitchen', desc: 'A well-equipped kitchen for meal programs and catering prep.' },
+    gym: { cap: 120, rate: 9000, label: 'Gymnasium', desc: 'A full-size gym for sports, expos, and large events.' },
+    outdoor: { cap: 200, rate: 6000, label: 'Outdoor Space', desc: 'An open green space for picnics, markets, and celebrations.' },
+    parking: { cap: 100, rate: 3000, label: 'Parking Lot', desc: 'Ample parking available to rent for events and overflow.' },
+    office: { cap: 12, rate: 3000, label: 'Meeting Room', desc: 'A quiet room for small meetings and gatherings.' },
+    nursery: { cap: 15, rate: 2500, label: 'Nursery', desc: 'A safe, cheerful room for the littlest guests.' },
+  };
+  const spaces = [...found.keys()].slice(0, 5).map((type) => {
+    const d = defaults[type] || { cap: 30, rate: 5000, label: 'Space', desc: 'A welcoming community space.' };
+    return { name: d.label, space_type: type, capacity_persons: d.cap, hourly_rate_cents: d.rate, description: d.desc };
+  });
+  return {
+    description: `${name} is a community space opening its doors to the neighborhood — with welcoming rooms for gatherings, classes, celebrations, and the work of building community together.`,
+    denomination: null,
+    spaces,
+  };
+}
+
 /** POST /api/ai/image { prompt } -> Flux image (facilities/spaces only, no people). */
 export async function handleAIImage(
   env: Env,

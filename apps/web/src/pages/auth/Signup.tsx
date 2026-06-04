@@ -21,7 +21,8 @@ export default function Signup() {
     setBusy(true);
     try {
       const u = await signup({ ...form, role });
-      navigate(homeForRole(u.role));
+      // New operators go through the guided AI setup; renters head to discovery.
+      navigate(u.role === 'operator' ? '/onboarding' : homeForRole(u.role));
     } catch (e) {
       notifyError(e);
     } finally {

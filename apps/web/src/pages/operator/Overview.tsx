@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Inbox, ShieldCheck, Banknote, CalendarDays, ArrowRight, Plus, ExternalLink } from 'lucide-react';
+import { Inbox, ShieldCheck, Banknote, CalendarDays, ArrowRight, Plus, ExternalLink, Sparkles, Check } from 'lucide-react';
 import { PageHeader } from '../../components/dash/DashShell.js';
 import { Card, CardBody, Stat, Badge, Button, EmptyState } from '../../components/ui.js';
 import { useStore } from '../../lib/store.js';
@@ -28,8 +28,38 @@ export default function Overview() {
   const revenue = bookings.filter((b) => ['confirmed', 'completed'].includes(b.status)).reduce((s, b) => s + b.subtotal_cents, 0);
   const pendingCoi = data.compliance_docs.filter((c) => c.facility_id === facility.id && c.status === 'pending').length;
 
+  const facilitySpaces = data.spaces.filter((s) => s.facility_id === facility.id);
+  const setupItems = [
+    { done: facilitySpaces.length > 0, label: 'Add your spaces', to: '/operator/spaces' },
+    { done: !!facility.description, label: 'Write your community description', to: '/operator/settings' },
+    { done: !!facility.use_agreement_text, label: 'Add a use agreement', to: '/operator/settings' },
+    { done: facility.stripe_onboarded === 1, label: 'Connect payouts', to: '/operator/settings' },
+  ];
+  const remaining = setupItems.filter((i) => !i.done).length;
+
   return (
     <div>
+      {remaining > 0 && (
+        <Card className="mb-6 border-primary/15 bg-primary-50/40">
+          <CardBody>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-semibold">Finish setting up — {setupItems.length - remaining}/{setupItems.length} done</h2>
+                <p className="mt-0.5 text-sm text-stone-warm">A few quick steps and you're ready to welcome the community.</p>
+              </div>
+              <Button asLink="/onboarding"><Sparkles className="h-4 w-4" /> Guided setup</Button>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {setupItems.map((i) => (
+                <Link key={i.label} to={i.to} className="flex items-center gap-2 rounded-card bg-white/70 px-3 py-2 text-sm hover:bg-white">
+                  <span className={`grid h-5 w-5 place-items-center rounded-full ${i.done ? 'bg-success text-white' : 'border border-black/15'}`}>{i.done && <Check className="h-3 w-3" />}</span>
+                  <span className={i.done ? 'text-stone-warm line-through' : 'font-medium'}>{i.label}</span>
+                </Link>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+      )}
       <PageHeader
         title={`Welcome back, ${user?.full_name?.split(' ')[0] || 'friend'}`}
         subtitle={facility.name}

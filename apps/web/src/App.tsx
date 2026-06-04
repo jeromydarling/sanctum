@@ -36,6 +36,7 @@ const OperatorAnalytics = lazy(() => import('./pages/operator/Analytics.js'));
 const OperatorReviews = lazy(() => import('./pages/operator/Reviews.js'));
 const OperatorAssistant = lazy(() => import('./pages/operator/Assistant.js'));
 const OperatorSettings = lazy(() => import('./pages/operator/Settings.js'));
+const Onboarding = lazy(() => import('./pages/operator/Onboarding.js'));
 
 // Renter
 const RenterLayout = lazy(() => import('./pages/renter/RenterLayout.js'));
@@ -125,6 +126,7 @@ export function App() {
           <Route path="learn" element={<RenterLearn />} />
           <Route path="settings" element={<RenterSettings />} />
         </Route>
+        <Route path="/onboarding" element={<Protected roles={['operator', 'staff']}><Onboarding /></Protected>} />
         <Route path="/book/:facilityId/:spaceId" element={<Protected roles={['renter']}><BookingFlow /></Protected>} />
 
         <Route path="/admin" element={<Protected roles={['admin']}><AdminLayout /></Protected>}>

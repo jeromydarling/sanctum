@@ -14,8 +14,11 @@ export interface TableDef {
 
 export const TABLES: Record<GenericTable, TableDef> = {
   profiles: {
+    // NOTE: 'role' and 'email' are intentionally NOT writable through the generic
+    // upsert — they're set at signup. Allowing self-edit of 'role' would be a
+    // privilege-escalation hole (a renter setting role='admin' on their own row).
     columns: [
-      'id', 'email', 'full_name', 'role', 'phone',
+      'id', 'full_name', 'phone',
       'organization_name', 'organization_type', 'avatar_url',
       'created_at', 'updated_at',
     ],
@@ -29,10 +32,13 @@ export const TABLES: Record<GenericTable, TableDef> = {
       'plan', 'subscription_status', 'is_listed', 'requires_approval',
       'approval_lead_days', 'cancellation_policy', 'facility_use_agreement_url',
       'require_coi', 'min_coi_amount_cents', 'tax_exempt_id', 'use_agreement_text',
-      'network_id', 'created_at', 'updated_at',
+      'created_at', 'updated_at',
     ],
     jsonColumns: [],
   },
+  // NOTE: 'network_id' is intentionally NOT writable here — network membership
+  // is controlled by validated join/leave/accept endpoints, so a facility can't
+  // attach itself to a network it doesn't own and wasn't invited to.
   networks: {
     columns: ['id', 'owner_id', 'name', 'slug', 'description', 'brand_primary', 'logo_url', 'created_at', 'updated_at'],
     jsonColumns: [],

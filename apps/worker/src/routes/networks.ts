@@ -83,3 +83,27 @@ export async function handleNetworkAccept(env: Env, req: Request, auth: AuthCont
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 }
+
+/** POST /api/networks/join { network_id, facility_id } — owner adds a community they operate. */
+export async function handleNetworkJoin(env: Env, req: Request, auth: AuthContext): Promise<Response> {
+  const { network_id, facility_id } = await readJson<{ network_id?: string; facility_id?: string }>(req);
+  if (!network_id || !facility_id) return err('network_id and facility_id are required', 422);
+  const owns = await ownsNetwork(env, auth.id, network_id);
+  if (!owns && auth.role !== 'admin') return err('Only the network owner can add communities', 403);
+  const facility = await env.DB.prepare('SELECT operator_id FROM facilities WHERE id = ?').bind(facility_id).first<{ operator_id: string }>();
+  if (!facility) return err('Facility not found', 404);
+  if (facility.operator_id !== auth.id && auth.role !== 'admin') return err('That community is not yours', 403);
+  await env.DB.prepare('UPDATE facilities SET network_id = ?, updated_at = ? WHERE id = ?').bind(network_id, nowISO(), facility_id).run();
+  return json({ ok: true });
+}
+
+/** POST /api/networks/leave { facility_id } — remove a community from its network. */
+export async function handleNetworkLeave(env: Env, req: Request, auth: AuthContext): Promise<Response> {
+  const { facility_id } = await readJson<{ facility_id?: string }>(req);
+  if (!facility_id) return err('facility_id is required', 422);
+  const facility = await env.DB.prepare('SELECT operator_id FROM facilities WHERE id = ?').bind(facility_id).first<{ operator_id: string }>();
+  if (!facility) return err('Facility not found', 404);
+  if (facility.operator_id !== auth.id && auth.role !== 'admin') return err('That community is not yours', 403);
+  await env.DB.prepare('UPDATE facilities SET network_id = NULL, updated_at = ? WHERE id = ?').bind(nowISO(), facility_id).run();
+  return json({ ok: true });
+}

@@ -16,7 +16,7 @@ import { handleUpload, handleFileServe } from './routes/files.js';
 import { handleTelemetry, handleExport, handleDeleteAccount } from './routes/misc.js';
 import { handleConnectAccount, handleCheckout, handleWebhook, handleSubscribe, handleBillingPortal, handleDepositResolve } from './routes/stripe.js';
 import { handleAdminErrors, handleAdminAnnounce } from './routes/admin.js';
-import { handleNetworkInvite, handleInviteInfo, handleNetworkAccept } from './routes/networks.js';
+import { handleNetworkInvite, handleInviteInfo, handleNetworkAccept, handleNetworkJoin, handleNetworkLeave } from './routes/networks.js';
 import { handleQboConnect, handleQboCallback, handleQboStatus, handleQboDisconnect, handleQboSync } from './routes/qbo.js';
 import { handleIcalExport, handleSubscribeUrl, handleIcalImport } from './routes/ical.js';
 import { runScheduled } from './scheduled.js';
@@ -148,6 +148,8 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   if (path === '/api/networks/invite' && method === 'POST') return handleNetworkInvite(env, req, auth);
   if (path === '/api/networks/invite-info' && method === 'GET') return handleInviteInfo(env, url, auth);
   if (path === '/api/networks/accept' && method === 'POST') return handleNetworkAccept(env, req, auth);
+  if (path === '/api/networks/join' && method === 'POST') return handleNetworkJoin(env, req, auth);
+  if (path === '/api/networks/leave' && method === 'POST') return handleNetworkLeave(env, req, auth);
 
   // Admin
   if (path === '/api/admin/errors' && method === 'GET') return handleAdminErrors(env, auth);

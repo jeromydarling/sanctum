@@ -246,6 +246,11 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
   if (env.STRIPE_WEBHOOK_SECRET) {
     const ok = await verifyStripeSig(payload, sig, env.STRIPE_WEBHOOK_SECRET);
     if (!ok) return err('Invalid signature', 400);
+  } else if (env.STRIPE_SECRET_KEY) {
+    // Live Stripe is configured but no webhook secret — refuse to trust unsigned
+    // events (they can confirm bookings / mark them paid). Only the fully-simulated
+    // mode (no Stripe keys at all) processes unsigned payloads.
+    return err('Webhook signature verification is not configured', 400);
   }
 
   let event: { type?: string; data?: { object?: Record<string, unknown> } };

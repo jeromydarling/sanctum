@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Network as NetworkIcon, ExternalLink, Save, Building2, Check, Mail, UserPlus } from 'lucide-react';
 import { PageHeader } from '../../components/dash/DashShell.js';
 import { Card, CardBody, Button, Input, Textarea, Badge, Stat, EmptyState, Spinner } from '../../components/ui.js';
-import { useStore, wt, rehydrate } from '../../lib/store.js';
+import { useStore, wt, rehydrate, touch } from '../../lib/store.js';
 import { useAuth } from '../../lib/auth.js';
 import { api } from '../../lib/api.js';
 import { isLive } from '../../lib/config.js';
@@ -57,8 +57,17 @@ function NetworkOwner({ network, userId }: { network: Network; userId: string })
   async function toggleMember(facilityId: string, join: boolean) {
     const fac = data.facilities.find((f) => f.id === facilityId);
     if (!fac) return;
-    try { await wt('facilities', { ...fac, network_id: join ? network.id : null, updated_at: new Date().toISOString() }); toast.success(join ? 'Added to network' : 'Removed from network'); }
-    catch (e) { notifyError(e); }
+    try {
+      if (isLive()) {
+        await api(join ? '/networks/join' : '/networks/leave', { body: { network_id: network.id, facility_id: facilityId } });
+        await rehydrate();
+      } else {
+        fac.network_id = join ? network.id : null;
+        fac.updated_at = new Date().toISOString();
+        touch();
+      }
+      toast.success(join ? 'Added to network' : 'Removed from network');
+    } catch (e) { notifyError(e); }
   }
 
   async function invite() {

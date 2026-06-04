@@ -43,6 +43,18 @@ export async function handleFileServe(env: Env, key: string, url: URL): Promise<
   const headers = new Headers();
   obj.writeHttpMetadata(headers);
   headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  // Prevent stored-XSS: never let an uploaded file be sniffed/rendered as HTML on
+  // our origin. Images display inline; everything else downloads as an attachment.
+  headers.set('X-Content-Type-Options', 'nosniff');
+  const ctype = (obj.httpMetadata?.contentType || '').toLowerCase();
+  // SVG is image/* but can carry scripts, so it is NOT a safe inline type.
+  const safeInlineImage = ctype.startsWith('image/') && !ctype.includes('svg');
+  if (!safeInlineImage) {
+    headers.set('Content-Disposition', 'attachment');
+    if (ctype === 'text/html' || ctype === 'application/xhtml+xml' || ctype.includes('javascript') || ctype.includes('svg')) {
+      headers.set('Content-Type', 'application/octet-stream');
+    }
+  }
 
   // Try Images transform when a width is requested and the binding exists.
   if (width > 0 && env.IMAGES) {

@@ -14,12 +14,14 @@ export interface Env {
   EMAIL_REPLY_TO?: string;
   APP_URL?: string;
   QBO_ENV?: string; // 'sandbox' | 'production'
+  TURNSTILE_SITE_KEY?: string; // public
   // Secrets (optional; degrade gracefully when absent)
   AUTH_SECRET?: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
   QBO_CLIENT_ID?: string;
   QBO_CLIENT_SECRET?: string;
+  TURNSTILE_SECRET_KEY?: string;
 }
 
 /** Cloudflare Email Service binding surface (Email Sending). */

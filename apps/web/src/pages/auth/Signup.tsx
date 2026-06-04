@@ -7,6 +7,7 @@ import { useAuth } from '../../lib/auth.js';
 import { homeForRole } from '../../lib/nav.js';
 import { notifyError } from '../../lib/errors.js';
 import { cn } from '../../lib/cn.js';
+import { Turnstile, type TurnstileState } from '../../components/Turnstile.js';
 import type { Role } from '@sanctum/shared';
 
 export default function Signup() {
@@ -15,12 +16,14 @@ export default function Signup() {
   const [role, setRole] = useState<Role>('operator');
   const [form, setForm] = useState({ full_name: '', email: '', password: '', organization_name: '' });
   const [busy, setBusy] = useState(false);
+  const [ts, setTs] = useState<TurnstileState>({ active: false, token: null });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (ts.active && !ts.token) { notifyError(new Error('Please complete the verification challenge')); return; }
     setBusy(true);
     try {
-      const u = await signup({ ...form, role });
+      const u = await signup({ ...form, role, turnstile_token: ts.token });
       // New operators go through the guided AI setup; renters head to discovery.
       navigate(u.role === 'operator' ? '/onboarding' : homeForRole(u.role));
     } catch (e) {
@@ -47,6 +50,7 @@ export default function Signup() {
           <Input label={role === 'operator' ? 'Community / organization name' : 'Organization (optional)'} required={role === 'operator'} value={form.organization_name} onChange={(e) => setForm({ ...form, organization_name: e.target.value })} placeholder={role === 'operator' ? 'St. Brigid Community Center' : 'Northside Youth Theater'} />
           <Input label="Email" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="you@community.org" />
           <Input label="Password" type="password" required minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} hint="At least 8 characters." placeholder="••••••••" />
+          <Turnstile onChange={setTs} />
           <Button type="submit" full loading={busy}>Create my account <ArrowRight className="h-4 w-4" /></Button>
           <p className="text-center text-xs text-stone-warm">Free for 30 days. No card required. By continuing you agree to our <Link to="/privacy" className="underline">privacy commitment</Link>.</p>
         </form></Card>

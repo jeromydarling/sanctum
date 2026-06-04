@@ -5,17 +5,20 @@ import { Logo } from '../../components/Logo.js';
 import { Button, Input, Card, CardBody } from '../../components/ui.js';
 import { api } from '../../lib/api.js';
 import { notifyError } from '../../lib/errors.js';
+import { Turnstile, type TurnstileState } from '../../components/Turnstile.js';
 
 export default function Forgot() {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [ts, setTs] = useState<TurnstileState>({ active: false, token: null });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (ts.active && !ts.token) { notifyError(new Error('Please complete the verification challenge')); return; }
     setBusy(true);
     try {
-      await api('/auth/forgot', { auth: false, body: { email } });
+      await api('/auth/forgot', { auth: false, body: { email, turnstile_token: ts.token } });
       setSent(true);
     } catch (e) { notifyError(e); } finally { setBusy(false); }
   }
@@ -37,6 +40,7 @@ export default function Forgot() {
             <p className="mt-1 text-sm text-stone-warm">Enter your email and we'll send you a reset link.</p>
             <Card className="mt-5"><form onSubmit={submit} className="space-y-4 p-6">
               <Input label="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@community.org" />
+              <Turnstile onChange={setTs} />
               <Button type="submit" full loading={busy}><Mail className="h-4 w-4" /> Send reset link</Button>
             </form></Card>
           </>

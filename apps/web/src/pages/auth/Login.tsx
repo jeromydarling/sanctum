@@ -6,6 +6,7 @@ import { Button, Input, Card, CardBody } from '../../components/ui.js';
 import { useAuth } from '../../lib/auth.js';
 import { homeForRole } from '../../lib/nav.js';
 import { notifyError } from '../../lib/errors.js';
+import { Turnstile, type TurnstileState } from '../../components/Turnstile.js';
 
 export default function Login() {
   const { login, demoLogin } = useAuth();
@@ -14,14 +15,16 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [ts, setTs] = useState<TurnstileState>({ active: false, token: null });
 
   const dest = (location.state as { from?: string })?.from;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (ts.active && !ts.token) { notifyError(new Error('Please complete the verification challenge')); return; }
     setBusy(true);
     try {
-      const u = await login(email, password);
+      const u = await login(email, password, ts.token);
       navigate(dest || homeForRole(u.role));
     } catch (e) {
       notifyError(e);
@@ -80,6 +83,7 @@ export default function Login() {
               <Input label="Password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
               <Link to="/forgot" className="mt-1.5 block text-right text-xs font-medium text-primary hover:underline">Forgot your password?</Link>
             </div>
+            <Turnstile onChange={setTs} />
             <Button type="submit" full loading={busy}>Sign in <ArrowRight className="h-4 w-4" /></Button>
           </form>
         </div>

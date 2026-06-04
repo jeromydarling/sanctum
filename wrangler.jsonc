@@ -48,7 +48,10 @@
     "EMAIL_FROM": "Sanctum <hello@sanctum.garden>",
     "EMAIL_REPLY_TO": "gardener@thecros.app",
     "APP_URL": "https://sanctum.garden",
-    "QBO_ENV": "production"
+    "QBO_ENV": "production",
+    // Cloudflare Turnstile site key (public). Paste your widget's site key here to
+    // enable bot protection; the matching TURNSTILE_SECRET_KEY is a Worker secret.
+    "TURNSTILE_SITE_KEY": ""
   },
   // Cloudflare Images — enabled.
   "images": {

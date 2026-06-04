@@ -14,7 +14,7 @@ interface AuthState {
   user: AuthUser | null;
   loading: boolean;
   demoLogin: (role: 'operator' | 'renter' | 'admin') => void;
-  login: (email: string, password: string) => Promise<AuthUser>;
+  login: (email: string, password: string, turnstileToken?: string | null) => Promise<AuthUser>;
   signup: (input: SignupInput) => Promise<AuthUser>;
   logout: () => void;
 }
@@ -25,6 +25,7 @@ export interface SignupInput {
   full_name?: string;
   role: Role;
   organization_name?: string;
+  turnstile_token?: string | null;
 }
 
 const AuthCtx = createContext<AuthState | null>(null);
@@ -64,9 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser({ id: u.id, email: u.email, role: u.role, full_name: u.full_name });
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, turnstileToken?: string | null) => {
     const { token, user: u } = await api<{ token: string; user: AuthUser }>('/auth/login', {
-      body: { email, password }, auth: false,
+      body: { email, password, turnstile_token: turnstileToken }, auth: false,
     });
     setToken(token);
     setSessionMode('live');

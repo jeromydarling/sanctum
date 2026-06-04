@@ -49,3 +49,14 @@ export function clearToken(): void {
 }
 
 export const SUPPORT_EMAIL = 'help@sanctum.app';
+
+// Public runtime config (Turnstile site key, etc.), fetched once and cached.
+let configPromise: Promise<{ turnstile_site_key: string | null }> | null = null;
+export function getPublicConfig(): Promise<{ turnstile_site_key: string | null }> {
+  if (!configPromise) {
+    configPromise = fetch('/api/config')
+      .then((r) => (r.ok ? r.json() : { turnstile_site_key: null }))
+      .catch(() => ({ turnstile_site_key: null }));
+  }
+  return configPromise;
+}

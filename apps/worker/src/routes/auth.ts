@@ -1,9 +1,10 @@
 /** Auth routes: signup, login, me. Live D1-backed. */
 import { slugify, starterFacilityId, type Role } from '@sanctum/shared';
 import type { Env, AuthContext } from '../types.js';
-import { json, err, readJson, genId, nowISO } from '../http.js';
+import { json, err, readJson, genId, nowISO, clientIP } from '../http.js';
 import { hashPassword, verifyPassword, issueToken } from '../auth.js';
 import { sendEmail, emailLayout } from '../email/index.js';
+import { verifyTurnstile } from '../turnstile.js';
 
 interface SignupBody {
   email?: string;
@@ -11,12 +12,16 @@ interface SignupBody {
   full_name?: string;
   role?: Role;
   organization_name?: string;
+  turnstile_token?: string;
 }
 
 const VALID_ROLES: Role[] = ['operator', 'renter'];
 
 export async function handleSignup(env: Env, req: Request): Promise<Response> {
   const body = await readJson<SignupBody>(req);
+  if (!(await verifyTurnstile(env, body.turnstile_token, clientIP(req)))) {
+    return err('Please complete the verification challenge', 403);
+  }
   const email = (body.email || '').trim().toLowerCase();
   const password = body.password || '';
   const role: Role = VALID_ROLES.includes(body.role as Role) ? (body.role as Role) : 'renter';
@@ -82,8 +87,11 @@ async function sha256hex(input: string): Promise<string> {
 
 /** POST /api/auth/forgot { email } — always returns ok (no account enumeration). */
 export async function handleForgotPassword(env: Env, req: Request): Promise<Response> {
-  const { email } = await readJson<{ email?: string }>(req);
-  const clean = (email || '').trim().toLowerCase();
+  const body = await readJson<{ email?: string; turnstile_token?: string }>(req);
+  if (!(await verifyTurnstile(env, body.turnstile_token, clientIP(req)))) {
+    return err('Please complete the verification challenge', 403);
+  }
+  const clean = (body.email || '').trim().toLowerCase();
   if (!clean) return err('Email is required', 422);
 
   const cred = await env.DB.prepare('SELECT user_id FROM auth_credentials WHERE email = ?')
@@ -135,7 +143,10 @@ export async function handleResetPassword(env: Env, req: Request): Promise<Respo
 }
 
 export async function handleLogin(env: Env, req: Request): Promise<Response> {
-  const body = await readJson<{ email?: string; password?: string }>(req);
+  const body = await readJson<{ email?: string; password?: string; turnstile_token?: string }>(req);
+  if (!(await verifyTurnstile(env, body.turnstile_token, clientIP(req)))) {
+    return err('Please complete the verification challenge', 403);
+  }
   const email = (body.email || '').trim().toLowerCase();
   const password = body.password || '';
   if (!email || !password) return err('Email and password are required', 422);

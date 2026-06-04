@@ -6,6 +6,7 @@ import { MarketingNav } from '../../components/marketing/MarketingNav.js';
 import { Footer, MarketingShell } from '../../components/marketing/Footer.js';
 import { SmartImage } from '../../components/SmartImage.js';
 import { Button, Card, CardBody, Badge, Input, Textarea, Spinner, EmptyState } from '../../components/ui.js';
+import { Turnstile, type TurnstileState } from '../../components/Turnstile.js';
 import { api } from '../../lib/api.js';
 import { notifyError } from '../../lib/errors.js';
 import { formatCents, AMENITY_LABELS, SPACE_TYPE_LABELS, SPACE_TYPE_EMOJI, type SpaceType, type Amenity } from '@sanctum/shared';
@@ -141,12 +142,14 @@ function InquiryForm({ facilityId }: { facilityId: string }) {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', organization: '', message: '' });
+  const [ts, setTs] = useState<TurnstileState>({ active: false, token: null });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (ts.active && !ts.token) { notifyError(new Error('Please complete the verification challenge')); return; }
     setBusy(true);
     try {
-      await api('/public/inquiry', { auth: false, body: { facility_id: facilityId, ...form } });
+      await api('/public/inquiry', { auth: false, body: { facility_id: facilityId, ...form, turnstile_token: ts.token } });
       setSent(true);
       toast.success('Your message is on its way!');
     } catch (e) {
@@ -173,6 +176,7 @@ function InquiryForm({ facilityId }: { facilityId: string }) {
         <Input type="email" placeholder="Email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         <Input placeholder="Organization (optional)" value={form.organization} onChange={(e) => setForm({ ...form, organization: e.target.value })} />
         <Textarea placeholder="Tell them about your event…" required value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
+        <Turnstile onChange={setTs} />
         <Button type="submit" full loading={busy}>Send inquiry</Button>
       </form>
     </CardBody></Card>

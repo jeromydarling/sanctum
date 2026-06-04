@@ -55,6 +55,14 @@ Only Stripe needs a key now — AI is Workers AI and email is Cloudflare Email S
 | `STRIPE_WEBHOOK_SECRET` | Verifies Stripe webhook signatures      | for real payments |
 | `QBO_CLIENT_ID`         | QuickBooks Online live sync             | optional  |
 | `QBO_CLIENT_SECRET`     | QuickBooks Online live sync             | optional  |
+| `TURNSTILE_SECRET_KEY`  | Bot protection on public forms          | optional  |
+
+**Turnstile (optional bot protection):** create a Turnstile widget in the Cloudflare
+dashboard for `sanctum.garden`. Put the **site key** in the `TURNSTILE_SITE_KEY` var in
+`wrangler.jsonc` (it's public — safe to commit) and set the **secret key** as the
+`TURNSTILE_SECRET_KEY` Worker secret. The signup, login, password-reset, and public
+inquiry forms then show the widget and verify it server-side. Until both are set, the
+forms work without a challenge.
 
 **QuickBooks Online (optional live sync):** create an app at the Intuit Developer
 portal, add the redirect URI `https://sanctum.garden/api/qbo/callback`, request the

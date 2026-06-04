@@ -1,5 +1,5 @@
 /** Cron: daily COI-expiry sweep + monthly idempotent auto-invoicing. */
-import { platformFeeCents } from '@sanctum/shared';
+import { platformFeeCents, leaseMonthlyAmountCents, type Lease } from '@sanctum/shared';
 import type { Env } from './types.js';
 import { genId, nowISO } from './http.js';
 import { sendEmail, emailLayout } from './email/index.js';
@@ -154,5 +154,36 @@ async function monthlyAutoInvoicing(env: Env): Promise<void> {
          VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 'sent', ?, ?)`,
       ).bind(id, f.id, b.id, b.renter_id, number, JSON.stringify(items), subtotal, subtotal, fee, ts, ts).run();
     }
+
+    // Recurring tenants/leases: one invoice per active lease for the prior month.
+    const leases = (
+      await env.DB.prepare("SELECT * FROM leases WHERE facility_id = ? AND status = 'active'").bind(f.id).all<Record<string, unknown>>()
+    ).results || [];
+    const prevYear = firstPrev.getUTCFullYear();
+    const prevMonth = firstPrev.getUTCMonth();
+    for (const lr of leases) {
+      const lease = { ...lr, weekdays: parseWeekdays(lr.weekdays) } as unknown as Lease;
+      // Only bill once the lease has started.
+      if (new Date(lease.start_date).getTime() >= firstThis.getTime()) continue;
+      const amount = leaseMonthlyAmountCents(lease, prevYear, prevMonth);
+      if (amount <= 0) continue;
+      const fee = platformFeeCents(amount, parseFloat(env.PLATFORM_FEE_PERCENT || '1.5'));
+      const id = genId('inv');
+      const ts = nowISO();
+      const number = `INV-${period.replace('-', '')}-${id.slice(-5).toUpperCase()}`;
+      const label = `${lease.title} — ${firstPrev.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })}`;
+      const items = [{ label, quantity: 1, unit_cents: amount, amount_cents: amount }];
+      await env.DB.prepare(
+        `INSERT INTO invoices (id, facility_id, booking_id, renter_id, invoice_number, line_items,
+          subtotal_cents, tax_cents, total_cents, platform_fee_cents, status, created_at, updated_at)
+         VALUES (?, ?, NULL, ?, ?, ?, ?, 0, ?, ?, 'sent', ?, ?)`,
+      ).bind(id, f.id, lease.renter_id || '', number, JSON.stringify(items), amount, amount, fee, ts, ts).run();
+    }
   }
+}
+
+function parseWeekdays(v: unknown): number[] {
+  if (Array.isArray(v)) return v as number[];
+  if (typeof v === 'string') { try { return JSON.parse(v); } catch { return []; } }
+  return [];
 }

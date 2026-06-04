@@ -5,7 +5,9 @@
 import {
   computeBookingPrice,
   durationMinutes,
+  leaseConflicts,
   type BookingStatus,
+  type Lease,
 } from '@sanctum/shared';
 import type { Env, AuthContext } from '../types.js';
 import { json, err, readJson, genId, nowISO } from '../http.js';
@@ -70,6 +72,16 @@ export async function handleCreateBooking(
   ).bind(space_id, end_time, start_time).first();
   if (blocked) {
     return err('That time is unavailable for this space.', 409, { conflict: true });
+  }
+  // Reject times reserved by an active recurring tenant/lease on this space.
+  const leaseRows = (await env.DB.prepare(
+    "SELECT * FROM leases WHERE space_id = ? AND status = 'active'",
+  ).bind(space_id).all<Record<string, unknown>>()).results || [];
+  for (const lr of leaseRows) {
+    const lease = { ...lr, weekdays: parseWeekdays(lr.weekdays) } as unknown as Lease;
+    if (leaseConflicts(lease, start_time, end_time)) {
+      return err('That time is reserved by a recurring tenant of this space.', 409, { conflict: true });
+    }
   }
 
   // --- Recompute money server-side; never trust client amounts ---
@@ -367,6 +379,12 @@ async function notify(
   )
     .bind(genId('ntf'), userId, n.title, n.body, n.action_url || null, ts, ts)
     .run();
+}
+
+function parseWeekdays(v: unknown): number[] {
+  if (Array.isArray(v)) return v as number[];
+  if (typeof v === 'string') { try { return JSON.parse(v); } catch { return []; } }
+  return [];
 }
 
 function clampDiscount(p: number | undefined): number {

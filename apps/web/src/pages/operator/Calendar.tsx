@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Plus, Ban, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Ban, Trash2, Repeat } from 'lucide-react';
 import { PageHeader } from '../../components/dash/DashShell.js';
 import { Card, Button, EmptyState, Badge, Modal, Input, Select } from '../../components/ui.js';
 import { useStore, wt, remove } from '../../lib/store.js';
@@ -9,6 +9,7 @@ import { useAuth } from '../../lib/auth.js';
 import { facilityForOperator, bookingsForFacility, spaceName } from '../../lib/selectors.js';
 import { formatTime } from '../../lib/format.js';
 import { genId } from '../../lib/ids.js';
+import { leaseOccurrences } from '@sanctum/shared';
 import { notifyError } from '../../lib/errors.js';
 import { cn } from '../../lib/cn.js';
 
@@ -41,6 +42,14 @@ export default function Calendar() {
     return s.getFullYear() === date.getFullYear() && s.getMonth() === date.getMonth() && s.getDate() === date.getDate();
   };
 
+  // Recurring tenant/lease occurrences across the visible month (+/- a couple days).
+  const winStart = new Date(year, month, -2);
+  const winEnd = new Date(year, month + 1, 2);
+  const leases = data.leases.filter((l) => l.facility_id === facility.id && l.status === 'active');
+  const leaseOccs = leases.flatMap((l) =>
+    leaseOccurrences(l, winStart, winEnd).map((o) => ({ ...o, title: l.title, space_id: l.space_id })),
+  );
+
   return (
     <div>
       <PageHeader
@@ -58,6 +67,7 @@ export default function Calendar() {
       <div className="mb-3 flex flex-wrap gap-2">
         {spaces.map((s) => <Badge key={s.id} className={colorFor(s.id)}>{s.name}</Badge>)}
         {blocks.length > 0 && <Badge tone="neutral"><Ban className="h-3 w-3" /> Blocked</Badge>}
+        {leases.length > 0 && <Badge tone="primary"><Repeat className="h-3 w-3" /> Recurring tenants</Badge>}
       </div>
       <Card className="overflow-hidden">
         <div className="grid grid-cols-7 border-b border-black/5 bg-cream text-center text-xs font-semibold text-stone-warm">
@@ -68,6 +78,7 @@ export default function Calendar() {
             const isToday = date && new Date().toDateString() === date.toDateString();
             const events = date ? bookings.filter((b) => sameDay(b.start_time, date)) : [];
             const dayBlocks = date ? blocks.filter((b) => sameDay(b.start_time, date)) : [];
+            const dayLeases = date ? leaseOccs.filter((o) => sameDay(o.start, date)) : [];
             return (
               <div key={i} className={cn('group min-h-24 border-b border-r border-black/5 p-1.5', !date && 'bg-black/[0.015]')}>
                 {date && (
@@ -81,6 +92,11 @@ export default function Calendar() {
                         <button key={e.id} onClick={() => navigate(`/operator/bookings/${e.id}`)} className={cn('block w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] font-medium', colorFor(e.space_id))} title={`${e.event_name} · ${spaceName(data, e.space_id)}`}>
                           {formatTime(e.start_time)} {e.event_name}
                         </button>
+                      ))}
+                      {dayLeases.map((o, k) => (
+                        <div key={`l${k}`} className="truncate rounded border border-dashed border-primary/40 bg-primary-50/50 px-1.5 py-0.5 text-[11px] font-medium text-primary-700" title={`${o.title} (recurring)`}>
+                          <Repeat className="mr-0.5 inline h-2.5 w-2.5" />{formatTime(o.start)} {o.title}
+                        </div>
                       ))}
                       {dayBlocks.map((b) => (
                         <div key={b.id} className="flex items-center justify-between gap-1 rounded bg-black/10 px-1.5 py-0.5 text-[11px] text-ink/60">

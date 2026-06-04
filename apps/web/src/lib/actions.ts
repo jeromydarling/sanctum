@@ -3,7 +3,7 @@
  * mutate the in-memory store when demo. These bypass the generic upsert.
  */
 import type { Booking, Invoice, InvoiceLineItem } from '@sanctum/shared';
-import { computeBookingPrice, durationMinutes } from '@sanctum/shared';
+import { computeBookingPrice, durationMinutes, leaseConflicts } from '@sanctum/shared';
 import { api } from './api.js';
 import { isLive } from './config.js';
 import { getData, table, rehydrate, touch } from './store.js';
@@ -75,6 +75,10 @@ export async function createBooking(input: NewBookingInput, renterId: string): P
     new Date(b.end_time).getTime() > bufStart,
   );
   if (conflict) throw new Error('That time overlaps an existing booking for this space.');
+
+  // Reject times reserved by an active recurring tenant of this space.
+  const leaseHit = d.leases.some((l) => l.space_id === input.space_id && leaseConflicts(l, input.start_time, input.end_time));
+  if (leaseHit) throw new Error('That time is reserved by a recurring tenant of this space.');
 
   const resourceFees = (input.resource_ids || []).reduce((sum, rid) => {
     const r = d.resources.find((x) => x.id === rid);

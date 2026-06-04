@@ -5,7 +5,7 @@
  */
 import type {
   Profile, Facility, Space, Resource, Booking, ComplianceDoc,
-  Invoice, Review, Lead, Notification, EventMicrosite, AvailabilityBlock, PricingRule,
+  Invoice, Review, Lead, Notification, EventMicrosite, AvailabilityBlock, PricingRule, Lease,
 } from '@sanctum/shared';
 
 export interface StoreData {
@@ -22,6 +22,7 @@ export interface StoreData {
   event_microsites: EventMicrosite[];
   availability_blocks: AvailabilityBlock[];
   pricing_rules: PricingRule[];
+  leases: Lease[];
 }
 
 const NOW = '2026-06-01T12:00:00.000Z';
@@ -166,10 +167,27 @@ export function freshStore(): StoreData {
     { id: 'pr-school', facility_id: FAC, org_type: 'school', discount_percent: 10, created_at: NOW, updated_at: NOW },
   ];
 
+  const leases: Lease[] = [
+    {
+      id: 'lease-daycare', facility_id: FAC, space_id: 'spc-class', renter_id: null,
+      title: 'Little Lambs Daycare', tenant_name: 'Maria Gomez', tenant_email: 'maria@littlelambs.org',
+      cadence: 'weekly', weekdays: [1, 2, 3, 4, 5], start_time_local: '08:00', end_time_local: '15:00',
+      start_date: '2026-01-05', end_date: null, rate_cents: 120000, rate_period: 'month',
+      status: 'active', notes: 'Long-term weekday tenant.', created_at: NOW, updated_at: NOW,
+    },
+    {
+      id: 'lease-aa', facility_id: FAC, space_id: 'spc-chapel', renter_id: null,
+      title: 'Tuesday Recovery Group', tenant_name: 'Community Recovery', tenant_email: null,
+      cadence: 'weekly', weekdays: [2], start_time_local: '19:00', end_time_local: '20:30',
+      start_date: '2026-02-03', end_date: null, rate_cents: 4000, rate_period: 'session',
+      status: 'active', notes: 'Weekly community meeting.', created_at: NOW, updated_at: NOW,
+    },
+  ];
+
   return {
     profiles, facilities: [facility], spaces, resources, bookings,
     compliance_docs, invoices, reviews, leads, notifications, event_microsites,
-    availability_blocks: [], pricing_rules,
+    availability_blocks: [], pricing_rules, leases,
   };
 }
 

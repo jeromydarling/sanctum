@@ -26,6 +26,7 @@ const OperatorBookings = lazy(() => import('./pages/operator/Bookings.js'));
 const OperatorBookingDetail = lazy(() => import('./pages/operator/BookingDetail.js'));
 const OperatorCalendar = lazy(() => import('./pages/operator/Calendar.js'));
 const OperatorSpaces = lazy(() => import('./pages/operator/Spaces.js'));
+const OperatorTenants = lazy(() => import('./pages/operator/Tenants.js'));
 const OperatorCompliance = lazy(() => import('./pages/operator/Compliance.js'));
 const OperatorPricing = lazy(() => import('./pages/operator/Pricing.js'));
 const OperatorInvoices = lazy(() => import('./pages/operator/Invoices.js'));
@@ -102,6 +103,7 @@ export function App() {
           <Route path="bookings" element={<OperatorBookings />} />
           <Route path="bookings/:id" element={<OperatorBookingDetail />} />
           <Route path="spaces" element={<OperatorSpaces />} />
+          <Route path="tenants" element={<OperatorTenants />} />
           <Route path="compliance" element={<OperatorCompliance />} />
           <Route path="pricing" element={<OperatorPricing />} />
           <Route path="invoices" element={<OperatorInvoices />} />

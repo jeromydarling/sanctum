@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight, CalendarCheck, ShieldCheck, Banknote, Sparkles, DoorOpen,
-  HeartHandshake, Building2, Users, TrendingUp, Check, Star,
+  HeartHandshake, Building2, Users, TrendingUp, Check, Star, Repeat, Gift,
 } from 'lucide-react';
 import { MarketingNav } from '../../components/marketing/MarketingNav.js';
 import { Footer, MarketingShell } from '../../components/marketing/Footer.js';
@@ -75,6 +75,37 @@ export default function Landing() {
               ))}
             </div>
           </Reveal>
+        </div>
+      </section>
+
+      {/* FOUR-PILLAR PROMISE */}
+      <section className="bg-white py-20">
+        <div className="container-x">
+          <Reveal>
+            <h2 className="mx-auto max-w-4xl text-center font-display text-3xl font-bold leading-snug sm:text-[2.6rem]">
+              Sanctum <span className="text-gradient">knows your calendar</span>, protects you legally,
+              handles your weekly tenants, and lets you <span className="text-gradient">give space away</span> as
+              easily as you rent it.
+            </h2>
+          </Reveal>
+          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { icon: CalendarCheck, t: 'Knows your calendar', d: 'Sync your church\'s own Google or iCal schedule so a rental can never collide with your youth group, choir, or Sunday service.' },
+              { icon: ShieldCheck, t: 'Protects you legally', d: 'E-signed use agreements, certificate-of-insurance tracking, security deposits, and an AI gate that screens every request against your rules.' },
+              { icon: Repeat, t: 'Handles weekly tenants', d: 'Recurring bookings and long-term tenant leases — the daycare, the AA group, the congregation that meets every week — billed automatically.' },
+              { icon: Gift, t: 'Give as easily as you rent', d: 'Offer space free to ministries, collect a suggested donation, or waive fees by group. Generosity, built in — not bolted on.' },
+            ].map((p, i) => (
+              <Reveal key={p.t} delay={i * 90}>
+                <Card className="h-full transition hover:shadow-lift">
+                  <CardBody>
+                    <span className="grid h-12 w-12 place-items-center rounded-card bg-primary text-gold-light"><p.icon className="h-6 w-6" /></span>
+                    <h3 className="mt-4 text-lg font-semibold">{p.t}</h3>
+                    <p className="mt-1.5 text-sm text-stone-warm">{p.d}</p>
+                  </CardBody>
+                </Card>
+              </Reveal>
+            ))}
+          </div>
         </div>
       </section>
 

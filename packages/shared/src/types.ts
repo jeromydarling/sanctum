@@ -262,6 +262,28 @@ export interface PricingRule {
   updated_at: ISODate;
 }
 
+export interface Lease {
+  id: string;
+  facility_id: string;
+  space_id: string;
+  renter_id: string | null;
+  title: string;
+  tenant_name: string | null;
+  tenant_email: string | null;
+  cadence: 'weekly' | 'biweekly' | 'monthly';
+  weekdays: number[]; // JSON, 0=Sun..6=Sat
+  start_time_local: string; // "08:00"
+  end_time_local: string; // "15:00"
+  start_date: string; // YYYY-MM-DD
+  end_date: string | null;
+  rate_cents: number;
+  rate_period: 'month' | 'session';
+  status: 'active' | 'paused' | 'ended';
+  notes: string | null;
+  created_at: ISODate;
+  updated_at: ISODate;
+}
+
 /** Tables routed through the generic write-through upsert. */
 export type GenericTable =
   | 'profiles'
@@ -274,7 +296,8 @@ export type GenericTable =
   | 'notifications'
   | 'event_microsites'
   | 'availability_blocks'
-  | 'pricing_rules';
+  | 'pricing_rules'
+  | 'leases';
 
 /** Tables that bypass the generic upsert (money/conflict-sensitive). */
 export type ProtectedTable = 'bookings' | 'invoices';

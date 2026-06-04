@@ -50,7 +50,7 @@ export default function BookingDetail() {
         <Card className="mt-5 border-primary/20 bg-primary-50/50"><CardBody className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
           <div>
             <p className="font-semibold text-primary-700">Approved — ready to confirm</p>
-            <p className="text-sm text-stone-warm">Pay {formatCents(booking.subtotal_cents)} to lock in your date.</p>
+            <p className="text-sm text-stone-warm">Pay {formatCents(booking.subtotal_cents + (booking.deposit_cents || 0))}{(booking.deposit_cents || 0) > 0 ? ` (incl. ${formatCents(booking.deposit_cents)} refundable deposit)` : ''} to lock in your date.</p>
           </div>
           <Button loading={busy} onClick={pay}><CreditCard className="h-4 w-4" /> Pay & confirm</Button>
         </CardBody></Card>
@@ -69,6 +69,18 @@ export default function BookingDetail() {
         <Card><CardBody className="space-y-2">
           <h2 className="font-semibold">Pricing</h2>
           <Row label="Total" value={formatCents(booking.subtotal_cents)} bold />
+          {(booking.deposit_cents || 0) > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span>Deposit{booking.deposit_status === 'held' ? ' (refundable)' : ''}</span>
+              <span className="flex items-center gap-2">
+                <span className="tabular">{formatCents(booking.deposit_cents)}</span>
+                <Badge tone={booking.deposit_status === 'returned' ? 'success' : booking.deposit_status === 'withheld' ? 'warning' : booking.deposit_status === 'held' ? 'gold' : 'neutral'}>{booking.deposit_status || 'none'}</Badge>
+              </span>
+            </div>
+          )}
+          {booking.deposit_status === 'withheld' && booking.deposit_resolution_note && (
+            <p className="rounded-card bg-cream px-2.5 py-2 text-xs text-stone-warm">Refunded {formatCents(booking.deposit_returned_cents || 0)} of your deposit. Note: {booking.deposit_resolution_note}</p>
+          )}
           <Row label="Platform fee (1.5%)" value={formatCents(booking.platform_fee_cents)} muted />
           <p className="flex items-start gap-1.5 pt-1 text-xs text-stone-warm"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 text-primary/60" /> Shown transparently, never hidden.</p>
         </CardBody></Card>

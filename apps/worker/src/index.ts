@@ -14,7 +14,7 @@ import { handleDiscover, handleFacilityBySlug, handleEventBySlug, handleInquiry 
 import { handleAITool, handleAIImage, handleOnboard } from './routes/ai.js';
 import { handleUpload, handleFileServe } from './routes/files.js';
 import { handleTelemetry, handleExport, handleDeleteAccount } from './routes/misc.js';
-import { handleConnectAccount, handleCheckout, handleWebhook, handleSubscribe, handleBillingPortal } from './routes/stripe.js';
+import { handleConnectAccount, handleCheckout, handleWebhook, handleSubscribe, handleBillingPortal, handleDepositResolve } from './routes/stripe.js';
 import { handleAdminErrors, handleAdminAnnounce } from './routes/admin.js';
 import { handleIcalExport, handleSubscribeUrl, handleIcalImport } from './routes/ical.js';
 import { runScheduled } from './scheduled.js';
@@ -119,6 +119,9 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
 
   // Bookings (dedicated)
   if (path === '/api/bookings' && method === 'POST') return handleCreateBooking(env, req, auth);
+  if (seg[0] === 'bookings' && seg[1] && seg[2] === 'deposit' && method === 'POST') {
+    return handleDepositResolve(env, req, auth, seg[1]);
+  }
   if (seg[0] === 'bookings' && seg[1] && seg[2] && method === 'POST') {
     const action = seg[2] as 'approve' | 'deny' | 'cancel' | 'confirm' | 'complete';
     if (['approve', 'deny', 'cancel', 'confirm', 'complete'].includes(action)) {

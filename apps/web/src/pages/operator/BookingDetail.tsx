@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, Check, X, FileText, Receipt, CalendarDays, Users2, MapPin, ShieldQuestion, Sparkles } from 'lucide-react';
-import { Card, CardBody, Badge, Button, EmptyState, Modal, Textarea, Spinner } from '../../components/ui.js';
+import { ArrowLeft, Check, X, FileText, Receipt, CalendarDays, Users2, MapPin, ShieldQuestion, Sparkles, Wallet } from 'lucide-react';
+import { Card, CardBody, Badge, Button, EmptyState, Modal, Textarea, Spinner, Input } from '../../components/ui.js';
 import { AiDisclaimer } from '../../components/AiDisclaimer.js';
 import { useStore } from '../../lib/store.js';
 import { spaceName, renterName, profile } from '../../lib/selectors.js';
 import { formatCents, BOOKING_STATUS_META, formatRange, formatDate } from '../../lib/format.js';
-import { bookingAction, createInvoiceFromBooking } from '../../lib/actions.js';
+import { bookingAction, createInvoiceFromBooking, resolveDeposit } from '../../lib/actions.js';
 import { callAI } from '../../lib/ai.js';
 import { notifyError } from '../../lib/errors.js';
-import type { Booking, Facility } from '@sanctum/shared';
+import { parseDollarsToCents, type Booking, type Facility } from '@sanctum/shared';
 
 export default function BookingDetail() {
   const { id } = useParams();
@@ -109,6 +109,8 @@ export default function BookingDetail() {
             )}
           </CardBody></Card>
 
+          {(booking.deposit_cents || 0) > 0 && <DepositCard booking={booking} />}
+
           <SuitabilityPanel booking={booking} facility={data.facilities.find((f) => f.id === booking.facility_id)} />
 
           <div className="space-y-2">
@@ -191,6 +193,54 @@ function SuitabilityPanel({ booking, facility }: { booking: Booking; facility?: 
           <AiDisclaimer />
         </>
       )}
+    </CardBody></Card>
+  );
+}
+
+function DepositCard({ booking }: { booking: Booking }) {
+  const [open, setOpen] = useState(false);
+  const [keep, setKeep] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const status = booking.deposit_status || 'none';
+
+  async function resolve(action: 'return' | 'withhold') {
+    setBusy(true);
+    try {
+      await resolveDeposit(booking.id, action, parseDollarsToCents(keep), note);
+      toast.success(action === 'return' ? 'Deposit returned' : 'Deposit resolved');
+      setOpen(false);
+    } catch (e) { notifyError(e); } finally { setBusy(false); }
+  }
+
+  return (
+    <Card><CardBody className="space-y-2">
+      <h2 className="flex items-center gap-2 font-semibold"><Wallet className="h-4 w-4 text-primary" /> Security deposit</h2>
+      <div className="flex items-center justify-between text-sm">
+        <span>{formatCents(booking.deposit_cents)} held</span>
+        <Badge tone={status === 'held' ? 'gold' : status === 'returned' ? 'success' : status === 'withheld' ? 'warning' : 'neutral'}>{status}</Badge>
+      </div>
+      {status === 'withheld' && (
+        <p className="rounded-card bg-cream px-2.5 py-2 text-xs text-stone-warm">Returned {formatCents(booking.deposit_returned_cents || 0)} · kept {formatCents((booking.deposit_cents || 0) - (booking.deposit_returned_cents || 0))}{booking.deposit_resolution_note ? ` — ${booking.deposit_resolution_note}` : ''}</p>
+      )}
+      {status === 'returned' && <p className="text-xs text-stone-warm">Fully returned to the renter.</p>}
+      {status === 'held' && (
+        <div className="space-y-2">
+          <p className="text-xs text-stone-warm">After the event, return the deposit or withhold for damages.</p>
+          <div className="flex gap-2">
+            <Button size="sm" full loading={busy} onClick={() => resolve('return')}>Return in full</Button>
+            <Button size="sm" variant="outline" onClick={() => setOpen(true)}>Withhold…</Button>
+          </div>
+        </div>
+      )}
+      <Modal open={open} onClose={() => setOpen(false)} title="Withhold for damages">
+        <div className="space-y-3">
+          <p className="text-sm text-stone-warm">Enter the amount to keep for damages. The rest is refunded to the renter.</p>
+          <Input label="Amount to keep ($)" value={keep} onChange={(e) => setKeep(e.target.value)} placeholder="50" hint={`Of ${formatCents(booking.deposit_cents)} held`} />
+          <Textarea label="Reason (shared with the renter)" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Replaced a damaged chair…" />
+          <div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button variant="danger" loading={busy} onClick={() => resolve('withhold')}>Withhold & refund rest</Button></div>
+        </div>
+      </Modal>
     </CardBody></Card>
   );
 }

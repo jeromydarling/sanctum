@@ -74,25 +74,38 @@ export async function handleCheckout(env: Env, req: Request, auth: AuthContext):
   if (booking.renter_id !== auth.id) return err('Not your booking', 403);
 
   const facility = await env.DB.prepare('SELECT * FROM facilities WHERE id = ?').bind(booking.facility_id).first<Record<string, unknown>>();
-  const amount = Number(booking.total_cents || 0);
-  const fee = platformFeeCents(amount, parseFloat(env.PLATFORM_FEE_PERCENT || '1.5'));
+  const subtotal = Number(booking.total_cents || 0);
+  const deposit = Number(booking.deposit_cents || 0); // collected, then returned/withheld later
+  // Platform fee applies only to the rental subtotal, never the refundable deposit.
+  const fee = platformFeeCents(subtotal, parseFloat(env.PLATFORM_FEE_PERCENT || '1.5'));
+  const depositStatus = deposit > 0 ? 'held' : 'none';
 
   if (!env.STRIPE_SECRET_KEY || !facility?.stripe_account_id) {
     // Simulate a successful payment in demo mode.
-    await env.DB.prepare('UPDATE bookings SET status = ?, balance_paid_at = ?, updated_at = ? WHERE id = ?')
-      .bind('confirmed', nowISO(), nowISO(), booking_id).run();
+    await env.DB.prepare('UPDATE bookings SET status = ?, balance_paid_at = ?, deposit_status = ?, updated_at = ? WHERE id = ?')
+      .bind('confirmed', nowISO(), depositStatus, nowISO(), booking_id).run();
     return json({ demo: true, confirmed: true });
   }
 
   const base = env.APP_URL || '';
-  const session = await stripeCall(env, '/checkout/sessions', {
-    mode: 'payment',
+  const items: Record<string, string | number> = {
     'line_items[0][price_data][currency]': 'usd',
     'line_items[0][price_data][product_data][name]': String(booking.event_name),
-    'line_items[0][price_data][unit_amount]': amount,
+    'line_items[0][price_data][unit_amount]': subtotal,
     'line_items[0][quantity]': 1,
+  };
+  if (deposit > 0) {
+    items['line_items[1][price_data][currency]'] = 'usd';
+    items['line_items[1][price_data][product_data][name]'] = 'Refundable security deposit';
+    items['line_items[1][price_data][unit_amount]'] = deposit;
+    items['line_items[1][quantity]'] = 1;
+  }
+  const session = await stripeCall(env, '/checkout/sessions', {
+    mode: 'payment',
+    ...items,
     'payment_intent_data[application_fee_amount]': fee,
     'payment_intent_data[transfer_data][destination]': facility.stripe_account_id as string,
+    'payment_intent_data[metadata][booking_id]': booking_id,
     success_url: `${base}/renter/bookings/${booking_id}?paid=1`,
     cancel_url: `${base}/renter/bookings/${booking_id}`,
     client_reference_id: booking_id,
@@ -158,6 +171,57 @@ export async function handleBillingPortal(env: Env, req: Request, auth: AuthCont
   return json({ url: session.url });
 }
 
+/** POST /api/bookings/:id/deposit { action:'return'|'withhold', keep_cents?, note? } */
+export async function handleDepositResolve(env: Env, req: Request, auth: AuthContext, bookingId: string): Promise<Response> {
+  const booking = await env.DB.prepare('SELECT * FROM bookings WHERE id = ?').bind(bookingId).first<Record<string, unknown>>();
+  if (!booking) return err('Booking not found', 404);
+  if (!(await operatesFacility(env, auth.id, booking.facility_id as string)) && auth.role !== 'admin') {
+    return err('Only the facility operator can resolve a deposit', 403);
+  }
+  const deposit = Number(booking.deposit_cents || 0);
+  if (deposit <= 0 || booking.deposit_status !== 'held') {
+    return err('There is no held deposit to resolve for this booking', 400);
+  }
+
+  const b = await readJson<{ action?: string; keep_cents?: number; note?: string }>(req);
+  const keep = Math.max(0, Math.min(deposit, Math.round(Number(b.keep_cents) || 0)));
+  const isWithhold = b.action === 'withhold';
+  const refundCents = isWithhold ? deposit - keep : deposit;
+  const newStatus = isWithhold && keep > 0 ? 'withheld' : 'returned';
+
+  // Issue the refund in live mode.
+  if (env.STRIPE_SECRET_KEY && booking.stripe_payment_intent_id && refundCents > 0) {
+    try {
+      await stripeCall(env, '/refunds', {
+        payment_intent: booking.stripe_payment_intent_id as string,
+        amount: refundCents,
+      });
+    } catch (e) {
+      return err(`Refund failed: ${(e as Error).message}`, 502);
+    }
+  }
+
+  await env.DB.prepare(
+    'UPDATE bookings SET deposit_status = ?, deposit_returned_cents = ?, deposit_resolution_note = ?, updated_at = ? WHERE id = ?',
+  ).bind(newStatus, refundCents, b.note || null, nowISO(), bookingId).run();
+
+  // Notify the renter.
+  const renter = await env.DB.prepare('SELECT email FROM profiles WHERE id = ?').bind(booking.renter_id).first<{ email: string }>();
+  if (renter?.email) {
+    await sendEmail(env, {
+      to: renter.email,
+      subject: `Your deposit for ${booking.event_name}`,
+      html: emailLayout('Deposit update', newStatus === 'returned'
+        ? `<p>Your full security deposit has been returned. Thank you for caring for the space!</p>`
+        : `<p>Part of your security deposit was kept for damages.${b.note ? ` Note: ${b.note}` : ''} The remainder has been refunded.</p>`),
+    });
+  }
+
+  const saved = await env.DB.prepare('SELECT * FROM bookings WHERE id = ?').bind(bookingId).first<Record<string, unknown>>();
+  try { (saved as Record<string, unknown>).resource_ids = JSON.parse((saved?.resource_ids as string) || '[]'); } catch { /* noop */ }
+  return json({ ok: true, booking: saved });
+}
+
 /** POST /api/stripe/webhooks — signature-verified. */
 export async function handleWebhook(env: Env, req: Request): Promise<Response> {
   const payload = await req.text();
@@ -194,8 +258,10 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
       }
       const bookingId = (obj.client_reference_id as string) || '';
       if (bookingId) {
-        await env.DB.prepare('UPDATE bookings SET status = ?, balance_paid_at = ?, updated_at = ? WHERE id = ?')
-          .bind('confirmed', nowISO(), nowISO(), bookingId).run();
+        const pi = (obj.payment_intent as string) || null;
+        await env.DB.prepare(
+          "UPDATE bookings SET status = ?, balance_paid_at = ?, stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id), deposit_status = CASE WHEN deposit_cents > 0 THEN 'held' ELSE deposit_status END, updated_at = ? WHERE id = ?",
+        ).bind('confirmed', nowISO(), pi, nowISO(), bookingId).run();
         const booking = await env.DB.prepare('SELECT * FROM bookings WHERE id = ?').bind(bookingId).first<Record<string, unknown>>();
         if (booking) {
           const facility = await env.DB.prepare('SELECT operator_id, name FROM facilities WHERE id = ?').bind(booking.facility_id).first<{ operator_id: string; name: string }>();

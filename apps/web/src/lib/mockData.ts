@@ -98,7 +98,7 @@ export function freshStore(): StoreData {
   const bookings: Booking[] = [
     booking('bkg-1', 'spc-hall', 'usr-demo-renter', 'Spring Benefit Dinner', 'community', 160, iso(12, 17), iso(12, 22), 70000, 'approved'),
     booking('bkg-2', 'spc-class', 'usr-demo-renter2', 'Beginner Quilting Workshop', 'class', 18, iso(8, 10), iso(8, 14), 16000, 'approved'),
-    booking('bkg-3', 'spc-chapel', 'usr-demo-renter', 'Youth Spring Recital', 'concert', 70, iso(20, 18), iso(20, 21), 30000, 'confirmed'),
+    { ...booking('bkg-3', 'spc-chapel', 'usr-demo-renter', 'Youth Spring Recital', 'concert', 70, iso(20, 18), iso(20, 21), 30000, 'confirmed'), deposit_cents: 20000, deposit_status: 'held' },
     booking('bkg-4', 'spc-gym', 'usr-demo-renter2', 'Community Wellness Fair', 'community', 140, iso(-10, 9), iso(-10, 15), 60000, 'completed'),
     booking('bkg-5', 'spc-kitchen', 'usr-demo-renter', 'Holiday Meal Prep', 'community', 10, iso(-25, 8), iso(-25, 16), 48000, 'completed'),
   ];

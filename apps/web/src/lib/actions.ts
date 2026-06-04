@@ -142,6 +142,29 @@ export async function createBooking(input: NewBookingInput, renterId: string): P
   return booking;
 }
 
+export async function resolveDeposit(
+  bookingId: string,
+  action: 'return' | 'withhold',
+  keepCents: number,
+  note: string,
+): Promise<void> {
+  const booking = table('bookings').find((b) => b.id === bookingId);
+  if (!booking) return;
+  const deposit = booking.deposit_cents || 0;
+  const refund = action === 'withhold' ? Math.max(0, deposit - keepCents) : deposit;
+  if (isLive()) {
+    const res = await api<{ booking: Booking }>(`/bookings/${bookingId}/deposit`, { body: { action, keep_cents: keepCents, note } });
+    Object.assign(booking, res.booking);
+    touch();
+    return;
+  }
+  booking.deposit_status = action === 'withhold' && keepCents > 0 ? 'withheld' : 'returned';
+  booking.deposit_returned_cents = refund;
+  booking.deposit_resolution_note = note || null;
+  booking.updated_at = new Date().toISOString();
+  touch();
+}
+
 export async function invoiceAction(id: string, action: 'send' | 'paid' | 'void'): Promise<void> {
   const inv = table('invoices').find((i) => i.id === id);
   if (!inv) return;
@@ -169,6 +192,7 @@ export async function payBooking(bookingId: string): Promise<void> {
   }
   booking.status = 'confirmed';
   booking.balance_paid_at = new Date().toISOString();
+  if ((booking.deposit_cents || 0) > 0) booking.deposit_status = 'held';
   booking.updated_at = booking.balance_paid_at;
   bump();
 }

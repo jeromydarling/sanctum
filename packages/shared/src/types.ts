@@ -142,6 +142,9 @@ export interface Booking {
   stripe_checkout_session_id: string | null;
   deposit_paid_at: ISODate | null;
   balance_paid_at: ISODate | null;
+  deposit_status?: 'none' | 'held' | 'returned' | 'withheld';
+  deposit_returned_cents?: number;
+  deposit_resolution_note?: string | null;
   resource_ids: string[]; // JSON
   renter_notes: string | null;
   operator_notes: string | null;

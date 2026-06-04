@@ -12,6 +12,7 @@ import {
 import type { Env, AuthContext } from '../types.js';
 import { json, err, readJson, genId, nowISO, clientIP } from '../http.js';
 import { operatesFacility } from '../db.js';
+import { insertBookingViaLock } from '../booking-lock.js';
 import { sendEmail, emailLayout } from '../email/index.js';
 
 interface CreateBookingBody {
@@ -145,24 +146,25 @@ export async function handleCreateBooking(
   const signedAt = signed ? ts : null;
   const signerIp = signed ? clientIP(req) : null;
 
-  await env.DB.prepare(
-    `INSERT INTO bookings (
-      id, facility_id, space_id, renter_id, event_name, event_type,
-      event_description, expected_attendance, start_time, end_time, setup_start_time,
-      subtotal_cents, deposit_cents, resource_fees_cents, discount_cents, total_cents,
-      platform_fee_cents, status, coi_uploaded, agreement_signed, agreement_signed_at,
-      agreement_signer, agreement_ip, resource_ids, renter_notes, operator_notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  )
-    .bind(
-      id, facility_id, space_id, auth.id, body.event_name.trim(), body.event_type || null,
-      body.event_description || null, body.expected_attendance || null, start_time, end_time,
-      body.setup_start_time || null,
-      price.subtotalCents, price.depositCents, price.resourceFeesCents, price.discountCents,
-      price.totalCents, price.platformFeeCents, status, signed, signedAt, signer, signerIp,
-      JSON.stringify(resourceIds), body.renter_notes || null, operatorNotes, ts, ts,
-    )
-    .run();
+  // Atomic conflict-check + insert via the per-space Durable Object lock. This
+  // closes the race where two simultaneous requests for the same slot both pass
+  // a plain SELECT conflict check and both insert.
+  const lockResult = await insertBookingViaLock(env, {
+    id, facility_id, space_id, renter_id: auth.id, event_name: body.event_name.trim(),
+    event_type: body.event_type || null, event_description: body.event_description || null,
+    expected_attendance: body.expected_attendance || null, start_time, end_time,
+    setup_start_time: body.setup_start_time || null, subtotal_cents: price.subtotalCents,
+    deposit_cents: price.depositCents, resource_fees_cents: price.resourceFeesCents,
+    discount_cents: price.discountCents, total_cents: price.totalCents,
+    platform_fee_cents: price.platformFeeCents, status, coi_uploaded: 0,
+    agreement_signed: signed, agreement_signed_at: signedAt, agreement_signer: signer,
+    agreement_ip: signerIp, resource_ids: JSON.stringify(resourceIds),
+    renter_notes: body.renter_notes || null, operator_notes: operatorNotes,
+    created_at: ts, updated_at: ts,
+  }, buffer);
+  if (lockResult.conflict) {
+    return err('That time was just booked by someone else for this space.', 409, { conflict: true });
+  }
 
   // Notify the operator in-app + email (skip for self-created walk-ins). Wording
   // depends on whether this facility gates bookings behind manual approval.

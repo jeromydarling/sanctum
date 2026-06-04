@@ -30,6 +30,15 @@
   "ai": {
     "binding": "AI"
   },
+  // Per-space lock that serializes booking writes (eliminates the double-booking race).
+  "durable_objects": {
+    "bindings": [
+      { "name": "SPACE_LOCK", "class_name": "SpaceLock" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_classes": ["SpaceLock"] }
+  ],
   "triggers": {
     // Daily at 08:00 UTC: insurance/COI expiry sweep + monthly auto-invoicing (idempotent).
     "crons": ["0 8 * * *"]

@@ -20,6 +20,7 @@ import { handleNetworkInvite, handleInviteInfo, handleNetworkAccept, handleNetwo
 import { handleQboConnect, handleQboCallback, handleQboStatus, handleQboDisconnect, handleQboSync } from './routes/qbo.js';
 import { handleIcalExport, handleSubscribeUrl, handleIcalImport } from './routes/ical.js';
 import { runScheduled } from './scheduled.js';
+export { SpaceLock } from './booking-lock.js';
 
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

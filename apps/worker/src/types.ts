@@ -2,6 +2,7 @@ import type { Role } from '@sanctum/shared';
 
 export interface Env {
   DB: D1Database;
+  SPACE_LOCK: DurableObjectNamespace;
   AI?: Ai;
   STORAGE?: R2Bucket;
   IMAGES?: ImagesBinding;

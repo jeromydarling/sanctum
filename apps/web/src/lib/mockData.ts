@@ -200,7 +200,8 @@ function space(id: string, name: string, type: string, cap: number, sqft: number
     available_days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
     available_start_time: '07:00', available_end_time: '22:00', min_booking_hours: 1,
     max_booking_hours: null, buffer_minutes: 30, amenities: amen, images: [],
-    allowed_uses: [], restricted_uses: [], is_active: 1, created_at: NOW, updated_at: NOW,
+    allowed_uses: [], restricted_uses: [], pricing_mode: id === 'spc-chapel' ? 'donation' : 'standard',
+    is_active: 1, created_at: NOW, updated_at: NOW,
   };
 }
 function resource(id: string, name: string, type: string, qty: number, flat: number): Resource {

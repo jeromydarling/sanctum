@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, Sparkles, Undo2, ImagePlus, Save, Globe, ExternalLink, Wand2, Calendar, MapPin,
+  ArrowLeft, Sparkles, Undo2, ImagePlus, Save, Globe, ExternalLink, Wand2, Calendar, MapPin, Languages, Trash2,
 } from 'lucide-react';
 import { Card, CardBody, Button, Input, Textarea, EmptyState, Spinner } from '../../components/ui.js';
 import { ImageStudio } from '../../components/ImageStudio.js';
@@ -10,13 +10,16 @@ import { AiDisclaimer } from '../../components/AiDisclaimer.js';
 import { useStore, wt } from '../../lib/store.js';
 import { useAuth } from '../../lib/auth.js';
 import { callAI } from '../../lib/ai.js';
+import { translateBatch, LANGS, RTL_LANGS } from '../../lib/translate.js';
 import { notifyError } from '../../lib/errors.js';
 import { cn } from '../../lib/cn.js';
 import type { EventMicrosite } from '@sanctum/shared';
 
+interface LangContent { headline?: string; body?: string; cta?: string; }
 interface Content {
   headline?: string; date?: string; location?: string; body?: string;
   cta?: string; theme?: string; cover?: string;
+  translations?: Record<string, LangContent>;
 }
 
 const THEMES: Record<string, { name: string; from: string; to: string }> = {
@@ -38,8 +41,23 @@ export default function SiteBuilder() {
   const [studio, setStudio] = useState(false);
   const [busy, setBusy] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
+  const [transBusy, setTransBusy] = useState(false);
 
   if (!site) return <EmptyState title="Event page not found" action={<Button asLink="/renter/sites">Back</Button>} />;
+
+  function setTr(ln: string, k: keyof LangContent, v: string) {
+    setContent((c) => ({ ...c, translations: { ...(c.translations || {}), [ln]: { ...(c.translations?.[ln] || {}), [k]: v } } }));
+  }
+
+  async function addLanguage(ln: string) {
+    setTransBusy(true);
+    pushHistory();
+    const fields = [content.headline || site!.title, content.body || '', content.cta || 'RSVP'];
+    const [headline, body, cta] = await translateBatch(fields, ln);
+    setContent((c) => ({ ...c, translations: { ...(c.translations || {}), [ln]: { headline, body, cta } } }));
+    setTransBusy(false);
+    toast.success(`Added ${LANGS.find((l) => l.name === ln)?.label || ln}`);
+  }
 
   function pushHistory() { setHistory((h) => [...h, content].slice(-20)); }
   function set<K extends keyof Content>(k: K, v: Content[K]) { setContent((c) => ({ ...c, [k]: v })); }
@@ -142,6 +160,31 @@ export default function SiteBuilder() {
               </div>
             </div>
             <Button variant="outline" onClick={() => setStudio(true)}><ImagePlus className="h-4 w-4" /> Cover image</Button>
+          </CardBody></Card>
+
+          <Card><CardBody className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold"><Languages className="h-4 w-4 text-primary" /> Publish in more languages</div>
+            <p className="text-xs text-stone-warm">Welcome more of your neighbors. AI drafts each version — edit anything before you publish.</p>
+            {Object.keys(content.translations || {}).map((ln) => {
+              const tc = content.translations![ln];
+              return (
+                <div key={ln} className="rounded-card border border-black/10 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-sm font-semibold">{LANGS.find((l) => l.name === ln)?.label || ln}</span>
+                    <button onClick={() => { pushHistory(); const t = { ...(content.translations || {}) }; delete t[ln]; set('translations', t); }} className="text-stone-warm hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                  <Input className="mb-2" value={tc.headline || ''} onChange={(e) => setTr(ln, 'headline', e.target.value)} placeholder="Headline" />
+                  <Textarea className="mb-2 min-h-[90px]" value={tc.body || ''} onChange={(e) => setTr(ln, 'body', e.target.value)} placeholder="Body" dir={RTL_LANGS.has(ln) ? 'rtl' : 'ltr'} />
+                  <Input value={tc.cta || ''} onChange={(e) => setTr(ln, 'cta', e.target.value)} placeholder="Button label" />
+                </div>
+              );
+            })}
+            <div className="flex flex-wrap gap-1.5">
+              {LANGS.filter((l) => l.name !== 'English' && !content.translations?.[l.name]).map((l) => (
+                <button key={l.name} onClick={() => addLanguage(l.name)} disabled={transBusy} className="rounded-full border border-black/10 px-3 py-1 text-xs font-medium text-ink/70 hover:border-primary/40 hover:text-primary disabled:opacity-50">+ {l.label}</button>
+              ))}
+            </div>
+            <AiDisclaimer />
           </CardBody></Card>
         </div>
 

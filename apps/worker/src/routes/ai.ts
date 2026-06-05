@@ -93,6 +93,30 @@ export async function handleAITool(
 }
 
 /** Run a Workers AI chat model; tries the primary model then a fast fallback. */
+/** POST /api/ai/translate-batch { texts: string[], target_language } — one metered
+ *  call translates many strings (model runs N times server-side; meter counts once). */
+export async function handleTranslateBatch(env: Env, req: Request, auth: AuthContext | null): Promise<Response> {
+  const ip = clientIP(req);
+  const gate = await meter(env, auth?.id || null, ip, 'translate');
+  if (!gate.ok) return json({ demo: true, limited: true });
+
+  const body = await readJson<{ texts?: string[]; target_language?: string }>(req);
+  const texts = Array.isArray(body.texts) ? body.texts.slice(0, 15) : [];
+  const lang = (body.target_language || '').trim();
+  if (!texts.length || !lang) return json({ translations: texts });
+  if (!env.AI) return json({ translations: texts, demo: true });
+
+  const system = "You are a careful, faithful translator. Translate the user's text into the requested language, preserving tone and meaning. Return ONLY the translated text — no preamble, no notes, no quotation marks.";
+  const out: string[] = [];
+  for (const t of texts) {
+    const text = (t || '').slice(0, 2000);
+    if (!text.trim()) { out.push(t); continue; }
+    const translated = await runText(env, system, `Translate the following into ${lang}:\n\n${text}`);
+    out.push(translated?.trim() || t);
+  }
+  return json({ translations: out });
+}
+
 async function runText(env: Env, system: string, prompt: string): Promise<string | null> {
   for (const model of [TEXT_MODEL, TEXT_MODEL_FALLBACK]) {
     try {

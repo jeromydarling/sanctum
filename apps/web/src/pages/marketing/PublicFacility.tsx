@@ -7,7 +7,8 @@ import { Footer, MarketingShell } from '../../components/marketing/Footer.js';
 import { SmartImage } from '../../components/SmartImage.js';
 import { Button, Card, CardBody, Badge, Input, Textarea, Spinner, EmptyState } from '../../components/ui.js';
 import { Turnstile, type TurnstileState } from '../../components/Turnstile.js';
-import { TranslateBlock } from '../../components/TranslateBlock.js';
+import { LanguageSelector } from '../../components/LanguageSelector.js';
+import { translateBatch, RTL_LANGS } from '../../lib/translate.js';
 import { api } from '../../lib/api.js';
 import { notifyError } from '../../lib/errors.js';
 import { formatCents, AMENITY_LABELS, SPACE_TYPE_LABELS, SPACE_TYPE_EMOJI, type SpaceType, type Amenity } from '@sanctum/shared';
@@ -29,6 +30,28 @@ export default function PublicFacility() {
   const [data, setData] = useState<{ facility: Facility; reviews: Review[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [lang, setLang] = useState('English');
+  const [tBusy, setTBusy] = useState(false);
+  const [tCache, setTCache] = useState<Record<string, Record<string, string>>>({});
+
+  async function changeLang(target: string) {
+    setLang(target);
+    if (target === 'English' || !data || tCache[target]) return;
+    const texts = [...new Set([
+      data.facility.description || '',
+      ...data.facility.spaces.map((s) => s.description || ''),
+      ...data.reviews.flatMap((r) => [r.headline || '', r.body || '']),
+    ].filter(Boolean))];
+    if (!texts.length) return;
+    setTBusy(true);
+    const out = await translateBatch(texts, target);
+    const map: Record<string, string> = {};
+    texts.forEach((t, i) => { map[t] = out[i] ?? t; });
+    setTCache((c) => ({ ...c, [target]: map }));
+    setTBusy(false);
+  }
+  const tx = (s: string | null | undefined): string => (s && lang !== 'English' ? (tCache[lang]?.[s] ?? s) : (s || ''));
+  const rtl = RTL_LANGS.has(lang);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,8 +101,9 @@ export default function PublicFacility() {
       </div>
 
       <div className="container-x grid gap-10 py-12 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          {facility.description && <TranslateBlock text={facility.description} className="text-lg text-ink/80" />}
+        <div className="lg:col-span-2" dir={rtl ? 'rtl' : 'ltr'}>
+          <div className="mb-3 flex justify-end" dir="ltr"><LanguageSelector value={lang} onChange={changeLang} busy={tBusy} /></div>
+          {facility.description && <p className="whitespace-pre-wrap text-lg leading-relaxed text-ink/80">{tx(facility.description)}</p>}
 
           <h2 className="mt-10 font-display text-2xl font-bold">Spaces</h2>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
@@ -91,7 +115,7 @@ export default function PublicFacility() {
                     <h3 className="font-semibold">{s.name}</h3>
                     <Badge tone="gold">{SPACE_TYPE_LABELS[s.space_type]}</Badge>
                   </div>
-                  {s.description && <p className="mt-2 line-clamp-3 text-sm text-stone-warm">{s.description}</p>}
+                  {s.description && <p className="mt-2 line-clamp-3 text-sm text-stone-warm">{tx(s.description)}</p>}
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {s.amenities.slice(0, 4).map((a) => (
                       <span key={a} className="rounded-full bg-black/[0.04] px-2 py-0.5 text-[11px] text-ink/70">{AMENITY_LABELS[a as Amenity] || a}</span>
@@ -114,8 +138,8 @@ export default function PublicFacility() {
                 {reviews.map((r) => (
                   <Card key={r.id}><CardBody>
                     <div className="flex gap-0.5 text-gold">{Array.from({ length: r.rating }).map((_, i) => <Star key={i} className="h-4 w-4 fill-current" />)}</div>
-                    {r.headline && <h4 className="mt-2 font-semibold">{r.headline}</h4>}
-                    {r.body && <p className="mt-1 text-sm text-stone-warm">{r.body}</p>}
+                    {r.headline && <h4 className="mt-2 font-semibold" dir={rtl ? 'rtl' : 'ltr'}>{tx(r.headline)}</h4>}
+                    {r.body && <p className="mt-1 text-sm text-stone-warm" dir={rtl ? 'rtl' : 'ltr'}>{tx(r.body)}</p>}
                   </CardBody></Card>
                 ))}
               </div>

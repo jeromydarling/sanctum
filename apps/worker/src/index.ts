@@ -12,7 +12,7 @@ import { handleUpsert, handleDelete, handleHydrate } from './routes/data.js';
 import { handleCreateBooking, handleBookingStatus } from './routes/bookings.js';
 import { handleCreateInvoice, handleInvoiceAction } from './routes/invoices.js';
 import { handleDiscover, handleFacilityBySlug, handleEventBySlug, handleInquiry, handleNetworkBySlug } from './routes/public.js';
-import { handleAITool, handleAIImage, handleOnboard } from './routes/ai.js';
+import { handleAITool, handleAIImage, handleOnboard, handleTranslateBatch } from './routes/ai.js';
 import { handleUpload, handleFileServe } from './routes/files.js';
 import { handleTelemetry, handleExport, handleDeleteAccount } from './routes/misc.js';
 import { handleConnectAccount, handleCheckout, handleWebhook, handleSubscribe, handleBillingPortal, handleDepositResolve } from './routes/stripe.js';
@@ -146,6 +146,7 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   if (seg[0] === 'ai' && method === 'POST') {
     if (seg[1] === 'image') return handleAIImage(env, req, auth);
     if (seg[1] === 'onboard') return handleOnboard(env, req, auth);
+    if (seg[1] === 'translate-batch') return handleTranslateBatch(env, req, auth);
     return handleAITool(env, req, auth, seg.slice(1).join('/'));
   }
 

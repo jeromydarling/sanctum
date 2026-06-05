@@ -161,6 +161,13 @@ export function freshStore(): StoreData {
       location: 'The Chapel, St. Brigid Community Center',
       body: 'Join us for an evening of music as our young performers share the songs they\'ve worked on all season. Doors open at 5:30. Light refreshments to follow.',
       cta: 'RSVP', cover: '', theme: 'indigo',
+      translations: {
+        Spanish: {
+          headline: 'Recital de Primavera de los Jóvenes',
+          body: 'Acompáñenos en una velada de música mientras nuestros jóvenes artistas comparten las canciones en las que han trabajado durante toda la temporada. Las puertas abren a las 5:30. Habrá un ligero refrigerio después.',
+          cta: 'Confirmar asistencia',
+        },
+      },
     },
     is_published: 1, rsvp_enabled: 1, created_at: NOW, updated_at: NOW,
   }];

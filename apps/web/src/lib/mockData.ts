@@ -68,7 +68,14 @@ export function freshStore(): StoreData {
     plan: 'growth', subscription_status: 'active', is_listed: 1, requires_approval: 0,
     approval_lead_days: 3, cancellation_policy: 'Full refund up to 7 days before your event.',
     facility_use_agreement_url: null, require_coi: 1, min_coi_amount_cents: 100000000,
-    tax_exempt_id: null, network_id: 'net-tcfn', created_at: NOW, updated_at: NOW,
+    tax_exempt_id: null, network_id: 'net-tcfn',
+    translations: {
+      Spanish: {
+        description:
+          'Un centro comunitario del vecindario con espacios para toda ocasión: desde recepciones de boda en el Salón de Convivencia hasta talleres, recitales y comidas compartidas. Creemos que un edificio vacío es un regalo esperando ser entregado.',
+      },
+    },
+    created_at: NOW, updated_at: NOW,
   };
 
   const spaces: Space[] = [
@@ -225,6 +232,9 @@ function space(id: string, name: string, type: string, cap: number, sqft: number
     available_start_time: '07:00', available_end_time: '22:00', min_booking_hours: 1,
     max_booking_hours: null, buffer_minutes: 30, amenities: amen, images: [],
     allowed_uses: [], restricted_uses: [], pricing_mode: id === 'spc-chapel' ? 'donation' : 'standard',
+    translations: id === 'spc-chapel'
+      ? { Spanish: { description: 'Una capilla íntima con luz cálida y excelente acústica. Un entorno sereno para ceremonias pequeñas, recitales y reuniones.' } }
+      : undefined,
     is_active: 1, created_at: NOW, updated_at: NOW,
   };
 }

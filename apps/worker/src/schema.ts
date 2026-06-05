@@ -32,9 +32,9 @@ export const TABLES: Record<GenericTable, TableDef> = {
       'plan', 'subscription_status', 'is_listed', 'requires_approval',
       'approval_lead_days', 'cancellation_policy', 'facility_use_agreement_url',
       'require_coi', 'min_coi_amount_cents', 'tax_exempt_id', 'use_agreement_text',
-      'created_at', 'updated_at',
+      'translations', 'created_at', 'updated_at',
     ],
-    jsonColumns: [],
+    jsonColumns: ['translations'],
   },
   // NOTE: 'network_id' is intentionally NOT writable here — network membership
   // is controlled by validated join/leave/accept endpoints, so a facility can't
@@ -51,9 +51,9 @@ export const TABLES: Record<GenericTable, TableDef> = {
       'deposit_amount_cents', 'available_days', 'available_start_time',
       'available_end_time', 'min_booking_hours', 'max_booking_hours',
       'buffer_minutes', 'amenities', 'images', 'allowed_uses',
-      'restricted_uses', 'pricing_mode', 'is_active', 'created_at', 'updated_at',
+      'restricted_uses', 'pricing_mode', 'translations', 'is_active', 'created_at', 'updated_at',
     ],
-    jsonColumns: ['available_days', 'amenities', 'images', 'allowed_uses', 'restricted_uses'],
+    jsonColumns: ['available_days', 'amenities', 'images', 'allowed_uses', 'restricted_uses', 'translations'],
   },
   resources: {
     columns: [

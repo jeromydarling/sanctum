@@ -16,9 +16,9 @@ export async function handleDiscover(env: Env, url: URL): Promise<Response> {
   const type = url.searchParams.get('type')?.trim();
   const capacity = parseInt(url.searchParams.get('capacity') || '0', 10);
 
-  const facilities = (
+  const facilities = ((
     await env.DB.prepare('SELECT * FROM facilities WHERE is_listed = 1').all<Record<string, unknown>>()
-  ).results || [];
+  ).results || []).map((f) => decodeRow(TABLES.facilities, f));
 
   const facIds = facilities.map((f) => f.id as string);
   let spaces: Record<string, unknown>[] = [];
@@ -52,6 +52,7 @@ export async function handleFacilityBySlug(env: Env, slug: string): Promise<Resp
     .bind(slug)
     .first<Record<string, unknown>>();
   if (!facility) return err('Facility not found', 404);
+  const facilityRow = decodeRow(TABLES.facilities, facility);
 
   const spacesRes = await env.DB.prepare(
     'SELECT * FROM spaces WHERE facility_id = ? AND is_active = 1',
@@ -65,7 +66,7 @@ export async function handleFacilityBySlug(env: Env, slug: string): Promise<Resp
   ).bind(facility.id).all<Record<string, unknown>>();
 
   return json({
-    facility: publicFacility(facility, spaces, rulesRes.results || []),
+    facility: publicFacility(facilityRow, spaces, rulesRes.results || []),
     reviews: reviewsRes.results || [],
   });
 }
@@ -77,7 +78,7 @@ export async function handleNetworkBySlug(env: Env, slug: string): Promise<Respo
   if (!network) return err('Network not found', 404);
 
   const facsRes = await env.DB.prepare('SELECT * FROM facilities WHERE network_id = ? AND is_listed = 1').bind(network.id).all<Record<string, unknown>>();
-  const facilities = facsRes.results || [];
+  const facilities = (facsRes.results || []).map((f) => decodeRow(TABLES.facilities, f));
   const facIds = facilities.map((f) => f.id as string);
   let spaces: Record<string, unknown>[] = [];
   if (facIds.length) {
@@ -150,6 +151,7 @@ function publicFacility(
     cover_image_url: f.cover_image_url,
     requires_approval: f.requires_approval,
     use_agreement_text: f.use_agreement_text,
+    translations: f.translations,
     spaces,
     pricing_rules: pricingRules.map((r) => ({ org_type: r.org_type, discount_percent: r.discount_percent })),
   };

@@ -6,6 +6,7 @@ import { Card, CardBody, Button, Badge, Input, Textarea, Select, Modal, EmptySta
 import { SmartImage } from '../../components/SmartImage.js';
 import { ImageStudio } from '../../components/ImageStudio.js';
 import { AiDisclaimer } from '../../components/AiDisclaimer.js';
+import { TranslationsEditor } from '../../components/TranslationsEditor.js';
 import { useStore, wt, remove } from '../../lib/store.js';
 import { useAuth } from '../../lib/auth.js';
 import { facilityForOperator } from '../../lib/selectors.js';
@@ -128,6 +129,7 @@ function SpaceEditor({ facilityId, space, onClose }: { facilityId: string; space
           </div>
           <Textarea value={form.description || ''} onChange={(e) => set('description', e.target.value)} placeholder="Describe the space…" />
           <div className="mt-1"><AiDisclaimer /></div>
+          <div className="mt-3"><TranslationsEditor source={form.description || ''} value={form.translations} onChange={(t) => set('translations', t)} label="Translate this space" /></div>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <Input label="Capacity" type="number" value={form.capacity_persons ?? ''} onChange={(e) => set('capacity_persons', e.target.value ? Number(e.target.value) : null)} />

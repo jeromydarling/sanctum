@@ -65,9 +65,13 @@ export interface Facility {
   ical_token?: string | null;
   external_ical_url?: string | null;
   network_id?: string | null;
+  translations?: AuthoredTranslations; // JSON: operator-authored description translations
   created_at: ISODate;
   updated_at: ISODate;
 }
+
+/** Operator-authored translations keyed by language name, e.g. { Spanish: { description } }. */
+export type AuthoredTranslations = Record<string, { description?: string }>;
 
 export type PricingMode = 'standard' | 'donation' | 'free';
 
@@ -107,6 +111,7 @@ export interface Space {
   allowed_uses: string[]; // JSON
   restricted_uses: string[]; // JSON
   pricing_mode?: PricingMode;
+  translations?: AuthoredTranslations; // JSON: operator-authored description translations
   is_active: Bool;
   created_at: ISODate;
   updated_at: ISODate;

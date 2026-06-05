@@ -8,6 +8,7 @@ import { Card, CardBody, Button, Input, Textarea, Badge, EmptyState, Modal } fro
 import { SmartImage } from '../../components/SmartImage.js';
 import { ImageStudio } from '../../components/ImageStudio.js';
 import { CalendarSyncCard } from '../../components/CalendarSync.js';
+import { TranslationsEditor } from '../../components/TranslationsEditor.js';
 import { AiDisclaimer } from '../../components/AiDisclaimer.js';
 import { callAI } from '../../lib/ai.js';
 import { Sparkles, Copy, FileSignature, Code } from 'lucide-react';
@@ -123,6 +124,7 @@ export default function Settings() {
           <Input label="Website" value={form.website || ''} onChange={(e) => set('website', e.target.value)} />
         </div>
         <Textarea label="About your community" value={form.description || ''} onChange={(e) => set('description', e.target.value)} />
+        <TranslationsEditor source={form.description || ''} value={form.translations} onChange={(t) => set('translations', t)} label="Translate your community profile" />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={form.is_listed === 1} onChange={(e) => set('is_listed', e.target.checked ? 1 : 0)} className="h-4 w-4" /> List us in public discovery
         </label>

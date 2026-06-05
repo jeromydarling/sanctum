@@ -4,6 +4,9 @@ import type { Env, AuthContext } from './types.js';
 import { TABLES, type TableDef } from './schema.js';
 import { nowISO } from './http.js';
 
+/** JSON columns whose empty/default value is an object `{}` rather than an array `[]`. */
+const OBJECT_JSON_COLS = new Set(['content', 'translations']);
+
 /** Encode a JS row into D1-storable values (JSON cols stringified, bools as int). */
 export function encodeRow(def: TableDef, row: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -11,7 +14,7 @@ export function encodeRow(def: TableDef, row: Record<string, unknown>): Record<s
     if (!(col in row)) continue;
     let v = row[col];
     if (def.jsonColumns.includes(col)) {
-      v = JSON.stringify(v ?? (col === 'content' ? {} : []));
+      v = JSON.stringify(v ?? (OBJECT_JSON_COLS.has(col) ? {} : []));
     } else if (typeof v === 'boolean') {
       v = v ? 1 : 0;
     }
@@ -28,7 +31,7 @@ export function decodeRow(def: TableDef, row: Record<string, unknown>): Record<s
       try {
         out[col] = JSON.parse(row[col] as string);
       } catch {
-        out[col] = col === 'content' ? {} : [];
+        out[col] = OBJECT_JSON_COLS.has(col) ? {} : [];
       }
     }
   }

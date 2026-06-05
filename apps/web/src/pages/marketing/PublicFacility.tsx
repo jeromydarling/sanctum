@@ -13,15 +13,18 @@ import { api } from '../../lib/api.js';
 import { notifyError } from '../../lib/errors.js';
 import { formatCents, AMENITY_LABELS, SPACE_TYPE_LABELS, SPACE_TYPE_EMOJI, type SpaceType, type Amenity } from '@sanctum/shared';
 
+type AuthoredTranslations = Record<string, { description?: string }>;
 interface PublicSpace {
   id: string; name: string; space_type: SpaceType; description: string | null;
   capacity_persons: number | null; hourly_rate_cents: number | null; half_day_rate_cents: number | null;
   full_day_rate_cents: number | null; images: string[]; amenities: string[]; pricing_mode?: 'standard' | 'donation' | 'free';
+  translations?: AuthoredTranslations;
 }
 interface Facility {
   id: string; name: string; slug: string; denomination: string | null; description: string | null;
   city: string; state: string; address: string; phone: string | null; email: string | null;
   website: string | null; cover_image_url: string | null; spaces: PublicSpace[];
+  translations?: AuthoredTranslations;
 }
 interface Review { id: string; rating: number; headline: string | null; body: string | null; }
 
@@ -37,16 +40,27 @@ export default function PublicFacility() {
   async function changeLang(target: string) {
     setLang(target);
     if (target === 'English' || !data || tCache[target]) return;
-    const texts = [...new Set([
+    // Seed perfect, operator-authored translations first — these display instantly.
+    const map: Record<string, string> = {};
+    const authoredFac = data.facility.translations?.[target]?.description;
+    if (data.facility.description && authoredFac) map[data.facility.description] = authoredFac;
+    for (const s of data.facility.spaces) {
+      const authored = s.translations?.[target]?.description;
+      if (s.description && authored) map[s.description] = authored;
+    }
+    // Anything the operator didn't pre-translate (reviews, untranslated spaces) gets AI-filled.
+    const remaining = [...new Set([
       data.facility.description || '',
       ...data.facility.spaces.map((s) => s.description || ''),
       ...data.reviews.flatMap((r) => [r.headline || '', r.body || '']),
-    ].filter(Boolean))];
-    if (!texts.length) return;
+    ].filter((t) => t && !map[t]))];
+    if (!remaining.length) {
+      setTCache((c) => ({ ...c, [target]: map }));
+      return;
+    }
     setTBusy(true);
-    const out = await translateBatch(texts, target);
-    const map: Record<string, string> = {};
-    texts.forEach((t, i) => { map[t] = out[i] ?? t; });
+    const out = await translateBatch(remaining, target);
+    remaining.forEach((t, i) => { map[t] = out[i] ?? t; });
     setTCache((c) => ({ ...c, [target]: map }));
     setTBusy(false);
   }

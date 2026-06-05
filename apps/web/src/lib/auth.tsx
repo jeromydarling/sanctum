@@ -61,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearToken();
     setSessionMode('demo');
     resetDemo();
+    sessionStorage.removeItem('sanctum.tourDone'); // re-offer the guided tour each demo
     const u = DEMO_USERS[role];
     setUser({ id: u.id, email: u.email, role: u.role, full_name: u.full_name });
   }, []);

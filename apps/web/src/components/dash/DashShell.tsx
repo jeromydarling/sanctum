@@ -8,6 +8,7 @@ import { useAuth } from '../../lib/auth.js';
 import { isDemo } from '../../lib/config.js';
 import { useStore } from '../../lib/store.js';
 import { initials } from '../../lib/format.js';
+import { DemoTour } from './DemoTour.js';
 
 export interface NavItem {
   to: string;
@@ -77,6 +78,7 @@ export function DashShell({ nav, title }: { nav: NavItem[]; title: string }) {
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <Outlet />
         </main>
+        <DemoTour />
       </div>
     </div>
   );

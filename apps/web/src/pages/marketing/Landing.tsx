@@ -49,6 +49,9 @@ export default function Landing() {
                 <Button size="lg" variant="outline" onClick={() => navigate('/find')}>
                   Find a space near you
                 </Button>
+                <Button size="lg" variant="ghost" onClick={() => navigate('/features')}>
+                  See every feature
+                </Button>
               </div>
             </Reveal>
             <Reveal delay={320}>
@@ -210,6 +213,11 @@ export default function Landing() {
             </Reveal>
           ))}
         </div>
+        <Reveal>
+          <div className="mt-10 text-center">
+            <Button variant="outline" onClick={() => navigate('/features')}>See every feature, live <ArrowRight className="h-4 w-4" /></Button>
+          </div>
+        </Reveal>
       </section>
 
       {/* THE MATH */}

@@ -61,6 +61,10 @@ const TOOLS: Record<string, ToolDef> = {
     system: 'You are a friendly guide who explains community-facility-rental topics (insurance, permitting, agreements, safety) in plain language. Be practical and concise. Always remind the reader to verify with local authorities.',
     build: (i) => `${i.question}`,
   },
+  'translate': {
+    system: 'You are a careful, faithful translator. Translate the user\'s text into the requested language, preserving tone and meaning. Return ONLY the translated text — no preamble, no notes, no quotation marks.',
+    build: (i) => `Translate the following into ${i.target_language}:\n\n${i.text}`,
+  },
 };
 
 export async function handleAITool(

@@ -7,6 +7,7 @@ import { Footer, MarketingShell } from '../../components/marketing/Footer.js';
 import { SmartImage } from '../../components/SmartImage.js';
 import { Button, Card, CardBody, Badge, Input, Textarea, Spinner, EmptyState } from '../../components/ui.js';
 import { Turnstile, type TurnstileState } from '../../components/Turnstile.js';
+import { TranslateBlock } from '../../components/TranslateBlock.js';
 import { api } from '../../lib/api.js';
 import { notifyError } from '../../lib/errors.js';
 import { formatCents, AMENITY_LABELS, SPACE_TYPE_LABELS, SPACE_TYPE_EMOJI, type SpaceType, type Amenity } from '@sanctum/shared';
@@ -78,7 +79,7 @@ export default function PublicFacility() {
 
       <div className="container-x grid gap-10 py-12 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          {facility.description && <p className="text-lg leading-relaxed text-ink/80">{facility.description}</p>}
+          {facility.description && <TranslateBlock text={facility.description} className="text-lg text-ink/80" />}
 
           <h2 className="mt-10 font-display text-2xl font-bold">Spaces</h2>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">

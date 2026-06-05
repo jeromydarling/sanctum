@@ -5,6 +5,7 @@ import { MarketingShell, Footer } from '../../components/marketing/Footer.js';
 import { MarketingNav } from '../../components/marketing/MarketingNav.js';
 import { SmartImage } from '../../components/SmartImage.js';
 import { Spinner, EmptyState, Button } from '../../components/ui.js';
+import { TranslateBlock } from '../../components/TranslateBlock.js';
 import { api } from '../../lib/api.js';
 
 interface Site {
@@ -51,7 +52,7 @@ export default function EventMicrosite() {
         </div>
       </div>
       <div className="container-x max-w-2xl py-12">
-        <p className="whitespace-pre-wrap text-lg leading-relaxed text-ink/80">{c.body || 'Join us for this community event.'}</p>
+        <TranslateBlock text={c.body || 'Join us for this community event.'} className="text-lg text-ink/80" />
         <Button className="mt-8" size="lg">{c.cta || 'RSVP'}</Button>
       </div>
       <Footer />

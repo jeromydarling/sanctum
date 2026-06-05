@@ -1,0 +1,7 @@
+# Copy to .dev.vars for local Worker development (gitignored). Set the same
+# values in production via `wrangler secret put <NAME>`.
+
+# Server-side Sentry DSN — captures worker request, cron, and Durable Object
+# (SpaceLock) errors. Already set as a CF Worker secret in production. Unset
+# locally → Sentry no-ops.
+SENTRY_DSN=

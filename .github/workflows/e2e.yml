@@ -19,7 +19,7 @@ jobs:
   e2e:
     name: Playwright (deployed site)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     env:
       BASE_URL: ${{ github.event.inputs.base_url || 'https://sanctum.garden' }}
       # Repo secret with a known low-value fallback. The purge endpoint is also

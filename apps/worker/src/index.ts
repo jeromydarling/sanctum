@@ -108,7 +108,7 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   }
 
   // ---- Public (no auth) ----
-  if (path === '/api/health') return json({ ok: true, ts: nowISO() });
+  if (path === '/api/health') return json({ ok: true, ts: nowISO(), version: env.CF_VERSION_METADATA?.id ?? null });
   if (path === '/api/config' && method === 'GET') {
     return json({ turnstile_site_key: env.TURNSTILE_SITE_KEY || null });
   }

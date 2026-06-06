@@ -136,15 +136,23 @@ export async function upsertRow(
 
   const encoded = encodeRow(def, row);
   const cols = Object.keys(encoded);
-  const placeholders = cols.map(() => '?').join(', ');
-  const updateCols = cols.filter((c) => c !== 'id' && c !== 'created_at');
-  const updateClause = updateCols.map((c) => `${c} = excluded.${c}`).join(', ');
 
-  const sql =
-    `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders}) ` +
-    `ON CONFLICT(id) DO UPDATE SET ${updateClause}`;
-
-  await env.DB.prepare(sql).bind(...cols.map((c) => encoded[c])).run();
+  if (existing) {
+    // UPDATE in place. Crucially this does NOT re-insert, so NOT NULL columns
+    // that are intentionally excluded from the writable whitelist (e.g. a
+    // profile's `email`) are left untouched rather than set to NULL — a plain
+    // INSERT...ON CONFLICT would fail the NOT NULL check on the insert attempt.
+    const setCols = cols.filter((c) => c !== 'id' && c !== 'created_at');
+    const setClause = setCols.map((c) => `${c} = ?`).join(', ');
+    await env.DB.prepare(`UPDATE ${table} SET ${setClause} WHERE id = ?`)
+      .bind(...setCols.map((c) => encoded[c]), row.id)
+      .run();
+  } else {
+    const placeholders = cols.map(() => '?').join(', ');
+    await env.DB.prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})`)
+      .bind(...cols.map((c) => encoded[c]))
+      .run();
+  }
 
   const saved = await env.DB.prepare(`SELECT * FROM ${table} WHERE id = ?`)
     .bind(row.id)

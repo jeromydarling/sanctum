@@ -8,6 +8,8 @@ export interface Env {
   IMAGES?: ImagesBinding;
   /** Cloudflare Email Service binding (env.EMAIL.send). Present once enabled. */
   EMAIL?: SendEmailBinding;
+  /** Cloudflare version-metadata binding — identifies the deployed version. */
+  CF_VERSION_METADATA?: { id: string; tag?: string; timestamp?: string };
   // Vars
   PLATFORM_FEE_PERCENT?: string;
   EMAIL_FROM?: string;

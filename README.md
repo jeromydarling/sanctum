@@ -97,3 +97,5 @@ stay commented out in `wrangler.jsonc` and the Worker degrades gracefully.
 - **Resilience** — ErrorBoundary, global handlers, telemetry sink to `error_logs`, the
   whole Worker `fetch` wrapped in try/catch returning a friendly error + incident id.
 - **Privacy** — `/privacy`, Settings → export-my-data and delete-my-account.
+
+<!-- deploy-trigger: 2026-06-06T01:46:15Z (Sentry DSN bake-in) -->

@@ -4,7 +4,9 @@ import { signUp, signOut, sweepPages, purgeUser, uniqueEmail, PASSWORD, PURGE_TO
 // The seeded demo facility — public, listed, auto-approve, no Stripe account —
 // so its checkout simulates a successful payment with zero Stripe involvement.
 const DEMO_FACILITY = 'fac-usr-demo-operator';
-const DEMO_SPACE = 'spc-class'; // Classroom 1 (standard pricing)
+// Fellowship Hall: standard pricing, and (unlike spc-class/spc-chapel) NO
+// recurring lease — so a far-future weekday slot never hits a tenant conflict.
+const DEMO_SPACE = 'spc-hall';
 
 /**
  * The renter side of "a real user does everything": a brand-new renter account,

@@ -14,7 +14,7 @@ import { handleCreateInvoice, handleInvoiceAction } from './routes/invoices.js';
 import { handleDiscover, handleFacilityBySlug, handleEventBySlug, handleInquiry, handleNetworkBySlug } from './routes/public.js';
 import { handleAITool, handleAIImage, handleOnboard, handleTranslateBatch } from './routes/ai.js';
 import { handleUpload, handleFileServe } from './routes/files.js';
-import { handleTelemetry, handleExport, handleDeleteAccount, handlePurgeUser } from './routes/misc.js';
+import { handleTelemetry, handleExport, handleDeleteAccount, handlePurgeUser, handleTestEmails } from './routes/misc.js';
 import { handleConnectAccount, handleCheckout, handleWebhook, handleSubscribe, handleBillingPortal, handleDepositResolve } from './routes/stripe.js';
 import { handleAdminErrors, handleAdminAnnounce } from './routes/admin.js';
 import { handleNetworkInvite, handleInviteInfo, handleNetworkAccept, handleNetworkJoin, handleNetworkLeave } from './routes/networks.js';
@@ -119,6 +119,8 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   if (path === '/api/auth/verify' && method === 'POST') return handleVerifyEmail(env, req);
   // E2E test-account teardown — token-guarded, restricted to e2e+* emails.
   if (path === '/api/admin/purge-user' && method === 'POST') return handlePurgeUser(env, url);
+  // E2E email-pipeline assertion — token-guarded, restricted to e2e+* recipients.
+  if (path === '/api/admin/test/emails' && method === 'GET') return handleTestEmails(env, url);
   if (path === '/api/public/discover' && method === 'GET') return handleDiscover(env, url);
   if (path === '/api/public/inquiry' && method === 'POST') return handleInquiry(env, req);
   if (seg[0] === 'public' && seg[1] === 'facility' && seg[2] && method === 'GET') {

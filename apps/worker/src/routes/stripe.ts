@@ -13,6 +13,17 @@ import { notify } from './bookings.js';
 
 const STRIPE_API = 'https://api.stripe.com/v1';
 
+/**
+ * True for E2E test traffic: the request carries the guard token AND the caller
+ * is a throwaway e2e+* account. Lets the rig drive the payout-connect flow
+ * deterministically (simulated) even when a live STRIPE_SECRET_KEY is set —
+ * real users never send the header, so they always hit real Stripe.
+ */
+function isE2ESim(env: Env, req: Request, auth: AuthContext): boolean {
+  const token = req.headers.get('x-e2e-token') || '';
+  return token === (env.E2E_ADMIN_TOKEN || 'sanctum-e2e-purge') && /^e2e\+/i.test(auth.email);
+}
+
 function stripeForm(obj: Record<string, string | number>): string {
   return Object.entries(obj).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&');
 }
@@ -37,8 +48,8 @@ export async function handleConnectAccount(env: Env, req: Request, auth: AuthCon
   if (!facility_id) return err('facility_id is required', 422);
   if (!(await operatesFacility(env, auth.id, facility_id))) return err('Not permitted', 403);
 
-  if (!env.STRIPE_SECRET_KEY) {
-    // Simulate onboarding so the demo flow completes end-to-end.
+  if (!env.STRIPE_SECRET_KEY || isE2ESim(env, req, auth)) {
+    // Simulate onboarding so the demo / E2E flow completes end-to-end.
     const fakeId = `acct_demo_${facility_id.slice(-8)}`;
     await env.DB.prepare('UPDATE facilities SET stripe_account_id = ?, stripe_onboarded = 1, updated_at = ? WHERE id = ?')
       .bind(fakeId, nowISO(), facility_id).run();
@@ -80,7 +91,10 @@ export async function handleCheckout(env: Env, req: Request, auth: AuthContext):
   const fee = platformFeeCents(subtotal, parseFloat(env.PLATFORM_FEE_PERCENT || '1.5'));
   const depositStatus = deposit > 0 ? 'held' : 'none';
 
-  if (!env.STRIPE_SECRET_KEY || !facility?.stripe_account_id) {
+  // A facility with no Stripe account — or a simulated (acct_demo_*) one — can't
+  // take a real charge, so confirm the booking without calling Stripe.
+  const simulatedAccount = !facility?.stripe_account_id || String(facility.stripe_account_id).startsWith('acct_demo_');
+  if (!env.STRIPE_SECRET_KEY || simulatedAccount) {
     // Simulate a successful payment in demo mode.
     await env.DB.prepare('UPDATE bookings SET status = ?, balance_paid_at = ?, deposit_status = ?, updated_at = ? WHERE id = ?')
       .bind('confirmed', nowISO(), depositStatus, nowISO(), booking_id).run();

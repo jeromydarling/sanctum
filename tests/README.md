@@ -10,8 +10,8 @@ are purged automatically.
 | Spec | What it does |
 | --- | --- |
 | `e2e/smoke.spec.ts` | Public surfaces (home, find, features, pricing) + API health/config/discover shape. No auth, no accounts. |
-| `e2e/journey.spec.ts` | The operator journey — signup → onboarding → every operator page → create a space, edit settings, set pricing, run the AI assistant → reload-verified persistence → sign out. Self-cleaning. |
-| `e2e/renter.spec.ts` | The renter journey — signup → every renter page → create an event page, edit settings → reload-verified persistence → sign out. Self-cleaning. |
+| `e2e/journey.spec.ts` | The operator journey — signup → onboarding → every operator page → create a space, edit settings, set pricing, **connect payouts (simulated)**, run the AI assistant → reload-verified persistence → sign out. Self-cleaning. |
+| `e2e/renter.spec.ts` | The renter journey — signup → **welcome-email assertion** → every renter page → create an event page → **book a space + pay → confirmed (simulated payment)** → edit settings → reload-verified persistence → sign out. Self-cleaning. |
 | `e2e/app.spec.ts` | Negative paths (bad login, protected-route redirects). Creates no accounts. |
 | `e2e/helpers.ts` | Shared signup / sign-out / page-sweep / purge helpers. |
 
@@ -65,6 +65,29 @@ loop. Verification is gated by a single server variable:
   `login` is blocked until the address is confirmed. *(Re-enabling also needs a
   front-end "check your inbox / confirm" screen; the server gate is the
   security control.)*
+
+## Faking payments & email (no real Stripe, no real delivery)
+
+The rig exercises the **money path** (book → pay → confirmed) and the **email
+pipeline** without touching real Stripe or sending real mail — safely, even
+against a live `STRIPE_SECRET_KEY`:
+
+- **Payments.** The app already has a "real-or-simulated" Stripe layer. The
+  Playwright context attaches `x-e2e-token: <guard token>` to every request;
+  the worker simulates payouts/checkout **only when** that token is present
+  **and** the signed-in account is an `e2e+*` test user. Real users never send
+  the header and don't know the token, so they always hit real Stripe. The
+  renter booking flow targets the seeded demo facility (no Stripe account), so
+  its checkout simulates a successful charge with zero Stripe calls and the
+  booking transitions to `confirmed` — the genuine internal state change.
+- **Email.** Every outbound message is recorded (recipient + subject only) in an
+  `email_log` table. `GET /api/admin/test/emails?token=…&to=…` (token-guarded,
+  restricted to `e2e+*` recipients) lets the rig assert the welcome email fired —
+  no delivery required.
+
+To lock the payment simulation down further, set a real `E2E_ADMIN_TOKEN` Worker
+secret (and the matching repo secret) — then the public default token won't
+enable it.
 
 ## Test-account cleanup
 

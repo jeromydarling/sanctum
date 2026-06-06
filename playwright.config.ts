@@ -28,6 +28,10 @@ export default defineConfig({
     : [['html', { open: 'never' }], ['list']],
   use: {
     baseURL: BASE_URL,
+    // Injected on every request. The worker simulates payouts/payments ONLY for
+    // requests that carry this token AND are signed in as an e2e+* account, so
+    // real users (who never send it) always hit real Stripe — even under a live key.
+    extraHTTPHeaders: { 'x-e2e-token': process.env.E2E_ADMIN_TOKEN || 'sanctum-e2e-purge' },
     reducedMotion: 'reduce',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

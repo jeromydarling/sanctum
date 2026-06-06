@@ -14,6 +14,19 @@ export interface EmailMessage {
 
 export async function sendEmail(env: Env, msg: EmailMessage): Promise<{ sent: boolean; demo?: boolean }> {
   const from = env.EMAIL_FROM || 'Sanctum <hello@sanctum.garden>';
+  const result = await deliver(env, msg, from);
+  // Record every outbound email (metadata only) so the pipeline is observable
+  // and testable — best-effort, never let logging break a send.
+  try {
+    await env.DB.prepare('INSERT INTO email_log (id, to_addr, subject, sent) VALUES (?, ?, ?, ?)')
+      .bind(`eml-${crypto.randomUUID()}`, msg.to.toLowerCase(), msg.subject, result.sent ? 1 : 0).run();
+  } catch (e) {
+    console.error('[email:log]', e);
+  }
+  return result;
+}
+
+async function deliver(env: Env, msg: EmailMessage, from: string): Promise<{ sent: boolean; demo?: boolean }> {
   if (!env.EMAIL) {
     console.log(`[email:noop] to=${msg.to} subject="${msg.subject}"`);
     return { sent: false, demo: true };

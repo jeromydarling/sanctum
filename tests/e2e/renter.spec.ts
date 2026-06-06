@@ -1,5 +1,10 @@
 import { test, expect, type Page } from '@playwright/test';
-import { signUp, signOut, sweepPages, purgeUser, uniqueEmail, PASSWORD } from './helpers.js';
+import { signUp, signOut, sweepPages, purgeUser, uniqueEmail, PASSWORD, PURGE_TOKEN } from './helpers.js';
+
+// The seeded demo facility — public, listed, auto-approve, no Stripe account —
+// so its checkout simulates a successful payment with zero Stripe involvement.
+const DEMO_FACILITY = 'fac-usr-demo-operator';
+const DEMO_SPACE = 'spc-class'; // Classroom 1 (standard pricing)
 
 /**
  * The renter side of "a real user does everything": a brand-new renter account,
@@ -41,8 +46,53 @@ test.describe('renter journey', () => {
     await expect(page.getByRole('heading', { name: /Find a space/ })).toBeVisible({ timeout: 20_000 });
   });
 
+  test('signup fired a welcome email (pipeline captured)', async () => {
+    const res = await page.request.get(
+      `/api/admin/test/emails?token=${encodeURIComponent(PURGE_TOKEN)}&to=${encodeURIComponent(email)}`,
+    );
+    expect(res.ok(), `email-log read returned HTTP ${res.status()}`).toBeTruthy();
+    const body = await res.json();
+    expect(Array.isArray(body.emails)).toBeTruthy();
+    expect(
+      body.emails.some((e: { subject: string }) => /welcome/i.test(e.subject)),
+      `expected a welcome email; got ${JSON.stringify(body.emails)}`,
+    ).toBeTruthy();
+  });
+
   test('every renter page renders', async () => {
     await sweepPages(page, RENTER_PAGES);
+  });
+
+  test('books a space and pays — booking is confirmed (simulated payment)', async () => {
+    // Unique far-future slot so parallel/repeat runs never collide on the space.
+    const slot = new Date(Date.now() + (300 + (runId % 1200)) * 86_400_000);
+    const dateStr = slot.toISOString().slice(0, 10);
+    const eventName = `E2E Booking ${runId}`;
+
+    await page.goto(`/book/${DEMO_FACILITY}/${DEMO_SPACE}`);
+    await expect(page.getByRole('heading', { name: /When would you like the space/i })).toBeVisible({ timeout: 20_000 });
+    await page.getByLabel('Date').fill(dateStr);
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page.getByRole('heading', { name: /Tell us about your event/i })).toBeVisible();
+    await page.getByLabel('Event name').fill(eventName);
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page.getByRole('heading', { name: /Review your booking/i })).toBeVisible();
+    await page.getByLabel('Type your full name to sign').fill('E2E Renter');
+    await page.getByRole('button', { name: /Confirm & continue/ }).click();
+
+    // Lands on the booking detail — auto-approved, ready to pay.
+    await expect(page).toHaveURL(/\/renter\/bookings\/.+/, { timeout: 20_000 });
+    const pay = page.getByRole('button', { name: /Pay & confirm/ });
+    await expect(pay).toBeVisible({ timeout: 20_000 });
+    await pay.click();
+
+    // Simulated payment confirms the booking; verify it sticks across a reload.
+    await expect(page.getByText('Confirmed').first()).toBeVisible({ timeout: 20_000 });
+    await page.reload();
+    await expect(page.getByText('Confirmed').first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('button', { name: /Pay & confirm/ })).toHaveCount(0);
   });
 
   test('creates an event page that persists across reload', async () => {

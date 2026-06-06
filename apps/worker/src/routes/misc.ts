@@ -122,3 +122,20 @@ export async function handlePurgeUser(env: Env, url: URL): Promise<Response> {
   await eraseUser(env, userId);
   return json({ ok: true, purged: true, user_id: userId });
 }
+
+/**
+ * GET /api/admin/test/emails?token=...&to=...
+ * Token-guarded read of the outbound-email log so the E2E rig can assert the
+ * email pipeline fired. Restricted to e2e+* recipients — never exposes a real
+ * person's email metadata.
+ */
+export async function handleTestEmails(env: Env, url: URL): Promise<Response> {
+  const token = url.searchParams.get('token') || '';
+  const to = (url.searchParams.get('to') || '').trim().toLowerCase();
+  if (token !== (env.E2E_ADMIN_TOKEN || DEFAULT_PURGE_TOKEN)) return err('Forbidden', 403);
+  if (!E2E_EMAIL_RE.test(to)) return err('Restricted to e2e+ test recipients', 422);
+  const rows = (await env.DB.prepare(
+    'SELECT subject, sent, created_at FROM email_log WHERE to_addr = ? ORDER BY created_at DESC LIMIT 20',
+  ).bind(to).all<Record<string, unknown>>()).results || [];
+  return json({ emails: rows });
+}

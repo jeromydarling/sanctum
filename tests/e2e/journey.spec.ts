@@ -115,6 +115,21 @@ test.describe('operator journey', () => {
     await expect(page.getByRole('spinbutton').first()).toHaveValue('15', { timeout: 15_000 });
   });
 
+  test('connects payouts (simulated) and it persists', async () => {
+    await page.goto('/operator/settings');
+    await expect(page.getByRole('heading', { name: /^Settings$/ })).toBeVisible();
+
+    // A brand-new operator isn't connected yet. Click Connect Stripe — for an
+    // e2e+ account carrying the guard token, the worker simulates onboarding
+    // (no real Stripe call), so this is deterministic even under a live key.
+    await page.getByRole('button', { name: /Connect Stripe/ }).click();
+    await expect(page.getByText('Connected').first()).toBeVisible({ timeout: 20_000 });
+
+    // Payout status is a real DB write — confirm it survives a reload.
+    await page.reload();
+    await expect(page.getByText('Connected').first()).toBeVisible({ timeout: 20_000 });
+  });
+
   test('AI assistant generates a draft', async () => {
     await page.goto('/operator/assistant');
     await expect(page.getByRole('heading', { name: /AI Assistant/ })).toBeVisible();

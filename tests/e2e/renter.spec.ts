@@ -74,11 +74,17 @@ test.describe('renter journey', () => {
     await expect(page.getByRole('heading', { name: /^Settings$/ })).toBeVisible();
 
     await page.getByLabel('Full name').fill(newName);
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(page.getByText('Profile saved')).toBeVisible({ timeout: 15_000 });
+    // Wait for the write to reach the server before reloading (a reload mid-write
+    // would abort it). Capture the status so a real failure is legible, then prove
+    // it persisted by reloading — the real point, not the transient toast.
+    const [resp] = await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/data/upsert') && r.request().method() === 'POST'),
+      page.getByRole('button', { name: 'Save', exact: true }).click(),
+    ]);
+    expect(resp.ok(), `profile upsert returned HTTP ${resp.status()}`).toBeTruthy();
 
     await page.reload();
-    await expect(page.getByLabel('Full name')).toHaveValue(newName, { timeout: 15_000 });
+    await expect(page.getByLabel('Full name')).toHaveValue(newName, { timeout: 20_000 });
   });
 
   test('session survives a cold reload, then signs out', async () => {

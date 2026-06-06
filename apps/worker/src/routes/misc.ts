@@ -47,7 +47,8 @@ export async function handleExport(env: Env, auth: AuthContext): Promise<Respons
 const FACILITY_CHILD_TABLES = [
   'spaces', 'resources', 'reviews', 'leads', 'compliance_docs', 'bookings',
   'invoices', 'event_microsites', 'pricing_rules', 'availability_blocks',
-  'leases', 'crm_interactions', 'tenant_interactions', 'billing_runs',
+  'leases', 'crm_interactions', 'billing_runs',
+  // NOTE: tenant_interactions was dropped in migration 0014 — do not reference it.
 ];
 // Tables scoped directly to a user id (beyond USER_OWNED_TABLES above).
 const USER_SCOPED_TABLES: { table: string; col: string }[] = [

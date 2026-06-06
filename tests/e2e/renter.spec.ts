@@ -56,10 +56,11 @@ test.describe('renter journey', () => {
     await dialog.getByLabel('Event title').fill(title);
     await dialog.getByRole('button', { name: /Create & edit/ }).click();
 
-    // Creation hard-navigates to the builder for the new page. Reload it: the
-    // headline field re-populating from the server proves the page hit D1.
+    // Creation hard-navigates (window.location) to the builder — itself a full
+    // page load that re-fetches the new page from D1. The Headline field
+    // re-populating from the server proves it persisted. (We let this load settle
+    // rather than reloading again, which would abort the in-flight /auth/me.)
     await expect(page).toHaveURL(/\/renter\/sites\/.+/, { timeout: 20_000 });
-    await page.reload();
     await expect(page.getByLabel('Headline')).toHaveValue(title, { timeout: 20_000 });
 
     // It also shows up in the list of event pages.

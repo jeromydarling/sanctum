@@ -3,7 +3,7 @@ import {
   createContext, useContext, useEffect, useState, useCallback, type ReactNode,
 } from 'react';
 import type { AuthUser, Role } from '@sanctum/shared';
-import { api } from './api.js';
+import { api, ApiError } from './api.js';
 import {
   setToken, clearToken, getToken, setSessionMode, clearSessionMode, getSessionMode, isLive,
 } from './config.js';
@@ -44,9 +44,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { user: u } = await api<{ user: AuthUser }>('/auth/me');
           await rehydrate();
           if (!cancelled) setUser(u);
-        } catch {
-          clearToken();
-          clearSessionMode();
+        } catch (e) {
+          // Only a definitive 401 means the token is invalid — sign out then.
+          // Transient failures (network blips, a request aborted by a fast
+          // refresh/navigation) must NOT nuke an otherwise-valid session.
+          if (e instanceof ApiError && e.status === 401) {
+            clearToken();
+            clearSessionMode();
+          }
         }
       }
       if (!cancelled) setLoading(false);

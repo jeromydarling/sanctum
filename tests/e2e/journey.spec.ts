@@ -125,12 +125,15 @@ test.describe('operator journey', () => {
   });
 
   test('session survives a cold reload, then signs out', async () => {
+    // A full document load restores the live session from storage. Let it settle
+    // (the authed dashboard shell renders its Notifications control) BEFORE
+    // reloading — reloading mid-load would abort the in-flight /auth/me, which the
+    // app treats as a sign-out. Settling first makes the reload a true refresh.
     await page.goto('/operator');
+    const notifications = page.getByRole('button', { name: 'Notifications' });
+    await expect(notifications).toBeVisible({ timeout: 20_000 });
     await page.reload();
-    // Session survived if the authenticated dashboard shell renders. Assert on the
-    // header's Notifications control — present for any authed role on both desktop
-    // and mobile, and independent of how fast facility data re-hydrates.
-    await expect(page.getByRole('button', { name: 'Notifications' })).toBeVisible({ timeout: 20_000 });
+    await expect(notifications).toBeVisible({ timeout: 20_000 });
     await signOut(page);
     // After sign-out, the dashboard is gone — protected routes bounce to login.
     await page.goto('/operator');

@@ -34,7 +34,7 @@ export function DashShell({ nav, title }: { nav: NavItem[]; title: string }) {
       <aside className={cn('fixed inset-y-0 left-0 z-40 w-64 transform border-r border-black/5 bg-white transition-transform lg:static lg:translate-x-0', open ? 'translate-x-0' : '-translate-x-full')}>
         <div className="flex h-16 items-center justify-between border-b border-black/5 px-5">
           <Logo to={user ? '/' : '/'} />
-          <button className="lg:hidden" onClick={() => setOpen(false)}><X className="h-5 w-5" /></button>
+          <button className="lg:hidden" aria-label="Close menu" onClick={() => setOpen(false)}><X className="h-5 w-5" /></button>
         </div>
         <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-stone-warm">{title}</div>
         <nav className="space-y-0.5 px-3">
@@ -62,7 +62,7 @@ export function DashShell({ nav, title }: { nav: NavItem[]; title: string }) {
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-black/5 bg-cream/85 px-4 backdrop-blur sm:px-6">
-          <button className="lg:hidden" onClick={() => setOpen(true)}><Menu className="h-5 w-5" /></button>
+          <button className="lg:hidden" aria-label="Open menu" onClick={() => setOpen(true)}><Menu className="h-5 w-5" /></button>
           <div className="flex flex-1 items-center justify-end gap-3">
             {isDemo() && <Badge tone="gold"><span className="hidden sm:inline">Demo sandbox — </span>nothing is saved</Badge>}
             <NotificationButton count={unread} />

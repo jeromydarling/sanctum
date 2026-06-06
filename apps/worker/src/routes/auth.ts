@@ -38,13 +38,18 @@ export async function handleSignup(env: Env, req: Request): Promise<Response> {
   const ts = nowISO();
   const { hash, salt } = await hashPassword(password);
 
+  // Email-verification gate. OFF by default (one variable to flip): when not
+  // "on", the account is created already-verified and may use the app at once.
+  const verificationOn = env.EMAIL_VERIFICATION === 'on';
+  const emailVerified = verificationOn ? 0 : 1;
+
   await env.DB.batch([
     env.DB.prepare(
       'INSERT INTO auth_credentials (user_id, email, password_hash, password_salt) VALUES (?, ?, ?, ?)',
     ).bind(userId, email, hash, salt),
     env.DB.prepare(
-      'INSERT INTO profiles (id, email, full_name, role, organization_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    ).bind(userId, email, body.full_name || null, role, body.organization_name || null, ts, ts),
+      'INSERT INTO profiles (id, email, full_name, role, organization_name, email_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    ).bind(userId, email, body.full_name || null, role, body.organization_name || null, emailVerified, ts, ts),
   ]);
 
   // Provision a deterministic starter facility for operators so the dashboard
@@ -62,7 +67,28 @@ export async function handleSignup(env: Env, req: Request): Promise<Response> {
       .run();
   }
 
-  // Warm welcome email (best-effort).
+  // Verification ON: send a confirm link and do NOT auto-authenticate.
+  if (verificationOn) {
+    const rawToken = `${genId('evf')}.${crypto.randomUUID()}`;
+    const tokenHash = await sha256hex(rawToken);
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24h
+    await env.DB.prepare(
+      'INSERT INTO email_verifications (token_hash, user_id, expires_at) VALUES (?, ?, ?)',
+    ).bind(tokenHash, userId, expires).run();
+    const link = `${env.APP_URL || ''}/verify?token=${encodeURIComponent(rawToken)}`;
+    await sendEmail(env, {
+      to: email,
+      subject: 'Confirm your email · Sanctum',
+      html: emailLayout(
+        'Confirm your email',
+        `<p>Welcome to Sanctum! Please confirm this email address to activate your account.</p>`,
+        { label: 'Confirm my email', url: link },
+      ),
+    });
+    return json({ verification_required: true, email });
+  }
+
+  // Verification OFF (default): warm welcome email (best-effort) + auto sign-in.
   await sendEmail(env, {
     to: email,
     subject: 'Welcome to Sanctum',
@@ -78,6 +104,29 @@ export async function handleSignup(env: Env, req: Request): Promise<Response> {
   const user: AuthContext = { id: userId, email, role, full_name: body.full_name || null };
   const token = await issueToken(env, user);
   return json({ token, user: { id: userId, email, role, full_name: body.full_name || null } });
+}
+
+/** POST /api/auth/verify { token } — confirm an email and sign the user in. */
+export async function handleVerifyEmail(env: Env, req: Request): Promise<Response> {
+  const { token } = await readJson<{ token?: string }>(req);
+  if (!token) return err('A verification token is required', 422);
+  const tokenHash = await sha256hex(token);
+  const row = await env.DB.prepare('SELECT user_id, expires_at FROM email_verifications WHERE token_hash = ?')
+    .bind(tokenHash).first<{ user_id: string; expires_at: string }>();
+  if (!row) return err('This confirmation link is invalid or has already been used.', 400);
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    await env.DB.prepare('DELETE FROM email_verifications WHERE token_hash = ?').bind(tokenHash).run();
+    return err('This confirmation link has expired. Please sign in to request a new one.', 400);
+  }
+  await env.DB.batch([
+    env.DB.prepare('UPDATE profiles SET email_verified = 1 WHERE id = ?').bind(row.user_id),
+    env.DB.prepare('DELETE FROM email_verifications WHERE user_id = ?').bind(row.user_id),
+  ]);
+  const profile = await env.DB.prepare('SELECT id, email, role, full_name FROM profiles WHERE id = ?')
+    .bind(row.user_id).first<AuthContext>();
+  if (!profile) return err('Account not found', 404);
+  const token2 = await issueToken(env, profile);
+  return json({ token: token2, user: profile });
 }
 
 async function sha256hex(input: string): Promise<string> {
@@ -162,14 +211,20 @@ export async function handleLogin(env: Env, req: Request): Promise<Response> {
   if (!ok) return err('Invalid email or password', 401);
 
   const profile = await env.DB.prepare(
-    'SELECT id, email, role, full_name FROM profiles WHERE id = ?',
+    'SELECT id, email, role, full_name, email_verified FROM profiles WHERE id = ?',
   )
     .bind(cred.user_id)
-    .first<AuthContext>();
+    .first<AuthContext & { email_verified: number }>();
   if (!profile) return err('Account not found', 404);
 
-  const token = await issueToken(env, profile);
-  return json({ token, user: profile });
+  // Only gate when verification is ON; default-OFF accounts are always verified.
+  if (env.EMAIL_VERIFICATION === 'on' && profile.email_verified === 0) {
+    return err('Please confirm your email address before signing in.', 403);
+  }
+
+  const { email_verified: _ev, ...user } = profile;
+  const token = await issueToken(env, user);
+  return json({ token, user });
 }
 
 export async function handleMe(auth: AuthContext | null): Promise<Response> {

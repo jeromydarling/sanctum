@@ -1,0 +1,67 @@
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Base URL to test against (defaults to production)'
+        required: false
+        default: 'https://sanctum.garden'
+
+# Let a newer push supersede an in-flight run.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Playwright (deployed site)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BASE_URL: ${{ github.event.inputs.base_url || 'https://sanctum.garden' }}
+      # Repo secret with a known low-value fallback. The purge endpoint is also
+      # hard-restricted to e2e+* emails server-side, so this can never harm a
+      # real account even if the fallback token is public.
+      E2E_ADMIN_TOKEN: ${{ secrets.E2E_ADMIN_TOKEN || 'sanctum-e2e-purge' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      # A push to main deploys via Cloudflare Workers Builds AND starts this job
+      # at the same time. Wait until THIS commit's code is actually live before
+      # testing — the purge route (new in this change) is a perfect sentinel:
+      # 404 = old deployment still serving, 403 = new code is live.
+      - name: Wait for the new deployment to go live
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/api/admin/purge-user" || echo 000)
+            echo "attempt $i: $BASE_URL/api/admin/purge-user -> $code"
+            if [ "$code" != "404" ] && [ "$code" != "000" ]; then
+              echo "Deployment is live."; exit 0
+            fi
+            sleep 10
+          done
+          echo "Timed out waiting for the new deployment." >&2
+          exit 1
+
+      - name: Run E2E (desktop + mobile)
+        run: npx playwright test --project=desktop --project=mobile
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

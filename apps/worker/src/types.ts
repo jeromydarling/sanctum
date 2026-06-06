@@ -15,6 +15,12 @@ export interface Env {
   APP_URL?: string;
   QBO_ENV?: string; // 'sandbox' | 'production'
   TURNSTILE_SITE_KEY?: string; // public
+  /**
+   * Email verification gate. Default OFF: any value other than "on" means new
+   * signups are created already-verified and may use the app immediately.
+   * Flip to "on" (one variable) to require email confirmation before login.
+   */
+  EMAIL_VERIFICATION?: string;
   // Secrets (optional; degrade gracefully when absent)
   AUTH_SECRET?: string;
   STRIPE_SECRET_KEY?: string;
@@ -23,6 +29,12 @@ export interface Env {
   QBO_CLIENT_SECRET?: string;
   TURNSTILE_SECRET_KEY?: string;
   SENTRY_DSN?: string; // server-side Sentry DSN (worker + cron + DO errors)
+  /**
+   * Token guarding the E2E test-account purge endpoint. When unset, a low-value
+   * default guard is used; purge is ALSO hard-restricted to throwaway e2e+*
+   * test emails, so it can never erase a real account even if the token leaks.
+   */
+  E2E_ADMIN_TOKEN?: string;
 }
 
 /** Cloudflare Email Service binding surface (Email Sending). */

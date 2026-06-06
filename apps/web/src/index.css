@@ -82,3 +82,26 @@ h1, h2, h3, h4, .font-display {
 ::selection {
   background: rgba(67, 56, 202, 0.16);
 }
+
+/*
+ * Honor the OS / test "reduce motion" preference. Playwright runs with
+ * reducedMotion:"reduce", which sets this media query — collapsing every
+ * animation, transition, and smooth-scroll to instant so elements settle
+ * immediately and never read as "unstable" mid-animation (a major source of
+ * click-timeout flake). Also a genuine accessibility win for real users.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -7,14 +7,14 @@ import * as Sentry from '@sentry/cloudflare';
 import type { Env, AuthContext } from './types.js';
 import { json, err, genId, nowISO } from './http.js';
 import { authFromRequest } from './auth.js';
-import { handleSignup, handleLogin, handleMe, handleForgotPassword, handleResetPassword } from './routes/auth.js';
+import { handleSignup, handleLogin, handleMe, handleForgotPassword, handleResetPassword, handleVerifyEmail } from './routes/auth.js';
 import { handleUpsert, handleDelete, handleHydrate } from './routes/data.js';
 import { handleCreateBooking, handleBookingStatus } from './routes/bookings.js';
 import { handleCreateInvoice, handleInvoiceAction } from './routes/invoices.js';
 import { handleDiscover, handleFacilityBySlug, handleEventBySlug, handleInquiry, handleNetworkBySlug } from './routes/public.js';
 import { handleAITool, handleAIImage, handleOnboard, handleTranslateBatch } from './routes/ai.js';
 import { handleUpload, handleFileServe } from './routes/files.js';
-import { handleTelemetry, handleExport, handleDeleteAccount } from './routes/misc.js';
+import { handleTelemetry, handleExport, handleDeleteAccount, handlePurgeUser } from './routes/misc.js';
 import { handleConnectAccount, handleCheckout, handleWebhook, handleSubscribe, handleBillingPortal, handleDepositResolve } from './routes/stripe.js';
 import { handleAdminErrors, handleAdminAnnounce } from './routes/admin.js';
 import { handleNetworkInvite, handleInviteInfo, handleNetworkAccept, handleNetworkJoin, handleNetworkLeave } from './routes/networks.js';
@@ -116,6 +116,9 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   if (path === '/api/auth/login' && method === 'POST') return handleLogin(env, req);
   if (path === '/api/auth/forgot' && method === 'POST') return handleForgotPassword(env, req);
   if (path === '/api/auth/reset' && method === 'POST') return handleResetPassword(env, req);
+  if (path === '/api/auth/verify' && method === 'POST') return handleVerifyEmail(env, req);
+  // E2E test-account teardown — token-guarded, restricted to e2e+* emails.
+  if (path === '/api/admin/purge-user' && method === 'POST') return handlePurgeUser(env, url);
   if (path === '/api/public/discover' && method === 'GET') return handleDiscover(env, url);
   if (path === '/api/public/inquiry' && method === 'POST') return handleInquiry(env, req);
   if (seg[0] === 'public' && seg[1] === 'facility' && seg[2] && method === 'GET') {

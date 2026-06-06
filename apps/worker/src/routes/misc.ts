@@ -65,11 +65,14 @@ const USER_SCOPED_TABLES: { table: string; col: string }[] = [
 export async function eraseUser(env: Env, userId: string): Promise<void> {
   const facs = (await env.DB.prepare('SELECT id FROM facilities WHERE operator_id = ?').bind(userId).all<{ id: string }>()).results || [];
   const nets = (await env.DB.prepare('SELECT id FROM networks WHERE owner_id = ?').bind(userId).all<{ id: string }>()).results || [];
+  const me = await env.DB.prepare('SELECT email FROM profiles WHERE id = ?').bind(userId).first<{ email: string }>();
   const stmts: D1PreparedStatement[] = [];
 
   for (const { table, col } of [...USER_OWNED_TABLES, ...USER_SCOPED_TABLES]) {
     stmts.push(env.DB.prepare(`DELETE FROM ${table} WHERE ${col} = ?`).bind(userId));
   }
+  // The outbound-email log is keyed by recipient address, not user id.
+  if (me?.email) stmts.push(env.DB.prepare('DELETE FROM email_log WHERE to_addr = ?').bind(me.email.toLowerCase()));
   for (const f of facs) {
     for (const t of FACILITY_CHILD_TABLES) {
       stmts.push(env.DB.prepare(`DELETE FROM ${t} WHERE facility_id = ?`).bind(f.id));

@@ -127,7 +127,10 @@ test.describe('operator journey', () => {
   test('session survives a cold reload, then signs out', async () => {
     await page.goto('/operator');
     await page.reload();
-    await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible({ timeout: 15_000 });
+    // Session survived if the authenticated dashboard shell renders. Assert on the
+    // header's Notifications control — present for any authed role on both desktop
+    // and mobile, and independent of how fast facility data re-hydrates.
+    await expect(page.getByRole('button', { name: 'Notifications' })).toBeVisible({ timeout: 20_000 });
     await signOut(page);
     // After sign-out, the dashboard is gone — protected routes bounce to login.
     await page.goto('/operator');

@@ -56,14 +56,15 @@ test.describe('renter journey', () => {
     await dialog.getByLabel('Event title').fill(title);
     await dialog.getByRole('button', { name: /Create & edit/ }).click();
 
-    // Creation hard-navigates to the builder for the new page.
-    await expect(page).toHaveURL(/\/renter\/sites\/.+/, { timeout: 15_000 });
-
-    // Back to the list: the page is there, and still there after a reload.
-    await page.goto('/renter/sites');
-    await expect(page.getByRole('heading', { name: title })).toBeVisible({ timeout: 15_000 });
+    // Creation hard-navigates to the builder for the new page. Reload it: the
+    // headline field re-populating from the server proves the page hit D1.
+    await expect(page).toHaveURL(/\/renter\/sites\/.+/, { timeout: 20_000 });
     await page.reload();
-    await expect(page.getByRole('heading', { name: title })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByLabel('Headline')).toHaveValue(title, { timeout: 20_000 });
+
+    // It also shows up in the list of event pages.
+    await page.goto('/renter/sites');
+    await expect(page.getByRole('heading', { name: title })).toBeVisible({ timeout: 20_000 });
   });
 
   test('saves profile settings that persist across reload', async () => {

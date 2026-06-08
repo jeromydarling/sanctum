@@ -119,6 +119,7 @@ export async function handleCheckout(env: Env, req: Request, auth: AuthContext):
     ...items,
     'payment_intent_data[application_fee_amount]': fee,
     'payment_intent_data[transfer_data][destination]': facility.stripe_account_id as string,
+    'payment_intent_data[on_behalf_of]': facility.stripe_account_id as string,
     'payment_intent_data[metadata][booking_id]': booking_id,
     success_url: `${base}/renter/bookings/${booking_id}?paid=1`,
     cancel_url: `${base}/renter/bookings/${booking_id}`,
@@ -221,6 +222,8 @@ export async function handleDepositResolve(env: Env, req: Request, auth: AuthCon
       await stripeCall(env, '/refunds', {
         payment_intent: booking.stripe_payment_intent_id as string,
         amount: refundCents,
+        reverse_transfer: 'true',
+        refund_application_fee: 'true',
       });
     } catch (e) {
       return err(`Refund failed: ${(e as Error).message}`, 502);
@@ -342,6 +345,80 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
               action_url: `/operator/bookings/${bookingId}`,
             });
           }
+        }
+      }
+      break;
+    }
+    case 'charge.refunded': {
+      // Look up the booking by payment_intent and reflect refund state.
+      const pi = (obj.payment_intent as string) || '';
+      const amountRefunded = Number(obj.amount_refunded || 0);
+      const amount = Number(obj.amount || 0);
+      if (pi) {
+        const booking = await env.DB.prepare('SELECT id, facility_id, event_name FROM bookings WHERE stripe_payment_intent_id = ?').bind(pi).first<{ id: string; facility_id: string; event_name: string }>();
+        if (booking) {
+          const refundStatus = amountRefunded >= amount ? 'refunded' : 'partially_refunded';
+          await env.DB.prepare('UPDATE bookings SET status = ?, updated_at = ? WHERE id = ?')
+            .bind(refundStatus, nowISO(), booking.id).run();
+          const facility = await env.DB.prepare('SELECT operator_id FROM facilities WHERE id = ?').bind(booking.facility_id).first<{ operator_id: string }>();
+          if (facility) {
+            await notify(env, facility.operator_id, {
+              title: refundStatus === 'refunded' ? 'Booking refunded' : 'Booking partially refunded',
+              body: `${booking.event_name} was ${refundStatus.replace('_', ' ')}.`,
+              action_url: `/operator/bookings/${booking.id}`,
+            });
+          }
+        }
+      }
+      break;
+    }
+    case 'charge.dispute.created':
+    case 'charge.dispute.updated':
+    case 'charge.dispute.closed': {
+      const pi = (obj.payment_intent as string) || '';
+      const disputeStatus = (obj.status as string) || '';
+      // Map Stripe dispute status to our booking status surface.
+      let bookingStatus: string | null = null;
+      if (event.type === 'charge.dispute.created') bookingStatus = 'disputed';
+      else if (event.type === 'charge.dispute.closed') {
+        if (disputeStatus === 'won') bookingStatus = 'dispute_won';
+        else if (disputeStatus === 'lost') bookingStatus = 'dispute_lost';
+      }
+      if (pi) {
+        const booking = await env.DB.prepare('SELECT id, facility_id, event_name FROM bookings WHERE stripe_payment_intent_id = ?').bind(pi).first<{ id: string; facility_id: string; event_name: string }>();
+        if (booking) {
+          if (bookingStatus) {
+            await env.DB.prepare('UPDATE bookings SET status = ?, updated_at = ? WHERE id = ?')
+              .bind(bookingStatus, nowISO(), booking.id).run();
+          }
+          const facility = await env.DB.prepare('SELECT operator_id FROM facilities WHERE id = ?').bind(booking.facility_id).first<{ operator_id: string }>();
+          if (facility) {
+            const title = event.type === 'charge.dispute.created'
+              ? 'Payment disputed — action required'
+              : event.type === 'charge.dispute.closed'
+                ? `Dispute closed (${disputeStatus})`
+                : 'Dispute updated';
+            await notify(env, facility.operator_id, {
+              title,
+              body: `Stripe dispute on ${booking.event_name}. As the connected account you are liable — respond in your Stripe dashboard.`,
+              action_url: `/operator/bookings/${booking.id}`,
+            });
+          }
+        }
+      }
+      break;
+    }
+    case 'payout.failed': {
+      // event.account is the connected (facility) account on Connect events.
+      const acctId = (event as { account?: string }).account || '';
+      if (acctId) {
+        const facility = await env.DB.prepare('SELECT id, operator_id, name FROM facilities WHERE stripe_account_id = ?').bind(acctId).first<{ id: string; operator_id: string; name: string }>();
+        if (facility) {
+          await notify(env, facility.operator_id, {
+            title: 'Payout failed',
+            body: `A Stripe payout to ${facility.name} failed. Check your bank details in Stripe Express.`,
+            action_url: `/operator/settings/stripe`,
+          });
         }
       }
       break;

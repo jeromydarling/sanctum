@@ -260,9 +260,16 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
   const payload = await req.text();
   const sig = req.headers.get('stripe-signature') || '';
 
-  if (env.STRIPE_WEBHOOK_SECRET) {
-    const ok = await verifyStripeSig(payload, sig, env.STRIPE_WEBHOOK_SECRET);
-    if (!ok) return err('Invalid signature', 400);
+  // Same URL serves both the platform webhook and the Connect webhook (events
+  // from connected accounts). Each endpoint has its own signing secret, so we
+  // try the platform secret first and fall back to the Connect secret.
+  const secrets = [env.STRIPE_WEBHOOK_SECRET, env.STRIPE_CONNECT_WEBHOOK_SECRET].filter(Boolean) as string[];
+  if (secrets.length > 0) {
+    let verified = false;
+    for (const s of secrets) {
+      if (await verifyStripeSig(payload, sig, s)) { verified = true; break; }
+    }
+    if (!verified) return err('Invalid signature', 400);
   } else if (env.STRIPE_SECRET_KEY) {
     // Live Stripe is configured but no webhook secret — refuse to trust unsigned
     // events (they can confirm bookings / mark them paid). Only the fully-simulated

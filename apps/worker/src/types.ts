@@ -27,6 +27,13 @@ export interface Env {
   AUTH_SECRET?: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  /**
+   * Signing secret for the Stripe Connect webhook endpoint (events from
+   * connected accounts). Same URL as the platform webhook, different secret.
+   * When set, signature verification tries STRIPE_WEBHOOK_SECRET first then
+   * falls back to this. Leave unset if only platform events are configured.
+   */
+  STRIPE_CONNECT_WEBHOOK_SECRET?: string;
   QBO_CLIENT_ID?: string;
   QBO_CLIENT_SECRET?: string;
   TURNSTILE_SECRET_KEY?: string;

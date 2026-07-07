@@ -3,6 +3,8 @@ import type { Role } from '@sanctum/shared';
 export interface Env {
   DB: D1Database;
   SPACE_LOCK: DurableObjectNamespace;
+  /** Static SPA assets binding — served (and SEO-rewritten) by the worker. */
+  ASSETS: Fetcher;
   AI?: Ai;
   STORAGE?: R2Bucket;
   IMAGES?: ImagesBinding;
@@ -17,6 +19,7 @@ export interface Env {
   APP_URL?: string;
   QBO_ENV?: string; // 'sandbox' | 'production'
   TURNSTILE_SITE_KEY?: string; // public
+  GSC_VERIFICATION?: string; // Google Search Console verification token (public)
   /**
    * Email verification gate. Default OFF: any value other than "on" means new
    * signups are created already-verified and may use the app immediately.

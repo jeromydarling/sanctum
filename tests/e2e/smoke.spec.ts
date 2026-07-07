@@ -47,4 +47,27 @@ test.describe('public smoke', () => {
     const body = await discover.json();
     expect(Array.isArray(body.facilities)).toBe(true);
   });
+
+  test('SEO: sitemap, robots, llms, and per-route meta', async ({ request }) => {
+    const sm = await request.get('/sitemap.xml');
+    expect(sm.ok()).toBeTruthy();
+    const smx = await sm.text();
+    expect(smx).toContain('<urlset');
+    expect(smx).toContain('/c/'); // dynamic facility routes are listed
+
+    const rb = await request.get('/robots.txt');
+    expect(rb.ok()).toBeTruthy();
+    expect(await rb.text()).toMatch(/Sitemap:\s*https?:\/\//);
+
+    const llm = await request.get('/llms.txt');
+    expect(llm.ok()).toBeTruthy();
+    expect(await llm.text()).toContain('](http'); // has links for AI assistants
+
+    // The Worker injects page-specific <head> metadata into the SPA shell.
+    const fac = await request.get('/c/st-brigid-community-center');
+    expect(fac.ok()).toBeTruthy();
+    const html = await fac.text();
+    expect(html).toMatch(/<title>[^<]*St\.?\s*Brigid/i);
+    expect(html).toContain('property="og:title"');
+  });
 });

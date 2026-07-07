@@ -21,6 +21,7 @@ import { handleNetworkInvite, handleInviteInfo, handleNetworkAccept, handleNetwo
 import { handleQboConnect, handleQboCallback, handleQboStatus, handleQboDisconnect, handleQboSync } from './routes/qbo.js';
 import { handleIcalExport, handleSubscribeUrl, handleIcalImport } from './routes/ical.js';
 import { runScheduled } from './scheduled.js';
+import { metaForPath, injectMeta, sitemap, robots, llms } from './seo.js';
 import { SpaceLock as SpaceLockClass } from './booking-lock.js';
 
 // Federation-standard Sentry options. Each surface (worker fetch/cron vs the
@@ -57,8 +58,9 @@ const handler = {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
     if (!url.pathname.startsWith('/api/')) {
-      // Static assets handled by the assets binding (run_worker_first only routes /api/*).
-      return new Response('Not found', { status: 404 });
+      // Everything non-API is a static asset. The worker runs first so it can
+      // serve SEO endpoints and inject per-route <head> metadata for crawlers.
+      return serveSite(req, env, url);
     }
     try {
       return await route(req, env, url, ctx);
@@ -90,6 +92,32 @@ const handler = {
 // Wrap the FULL { fetch, scheduled } handler — not just fetch — so cron
 // (runScheduled) failures are captured too, not only request errors.
 export default Sentry.withSentry(sentryOptions('worker'), handler);
+
+/**
+ * Serve the SPA. SEO text endpoints are generated here; every other path is
+ * fetched from the assets binding, and HTML documents get per-route <head>
+ * metadata injected for search engines and social cards. Never breaks asset
+ * serving — any error falls back to the raw asset response.
+ */
+async function serveSite(req: Request, env: Env, url: URL): Promise<Response> {
+  const path = url.pathname;
+  if (req.method === 'GET') {
+    if (path === '/sitemap.xml') return sitemap(env);
+    if (path === '/robots.txt') return robots(env);
+    if (path === '/llms.txt') return llms(env);
+  }
+
+  const asset = await env.ASSETS.fetch(req);
+  const type = asset.headers.get('content-type') || '';
+  if (req.method !== 'GET' || !type.includes('text/html')) return asset;
+
+  try {
+    const meta = await metaForPath(env, path);
+    return injectMeta(asset, meta, env);
+  } catch {
+    return asset; // SEO must never take the site down
+  }
+}
 
 async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): Promise<Response> {
   const path = url.pathname;

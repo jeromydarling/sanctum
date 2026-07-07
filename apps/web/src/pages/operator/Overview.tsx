@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Inbox, ShieldCheck, Banknote, CalendarDays, ArrowRight, Plus, ExternalLink, Sparkles, Check } from 'lucide-react';
 import { PageHeader } from '../../components/dash/DashShell.js';
+import { ImpactCard } from '../../components/dash/ImpactCard.js';
+import { BillingBanner } from '../../components/dash/BillingBanner.js';
 import { Card, CardBody, Stat, Badge, Button, EmptyState } from '../../components/ui.js';
 import { useStore } from '../../lib/store.js';
 import { useAuth } from '../../lib/auth.js';
@@ -39,6 +41,7 @@ export default function Overview() {
 
   return (
     <div>
+      <BillingBanner facility={facility} />
       {remaining > 0 && (
         <Card className="mb-6 border-primary/15 bg-primary-50/40">
           <CardBody>
@@ -77,6 +80,8 @@ export default function Overview() {
         <Stat label="Upcoming events" value={upcoming.length} sub="approved & confirmed" />
         <Stat label="Compliance to review" value={pendingCoi} sub="insurance documents" tone="primary" />
       </div>
+
+      <ImpactCard facility={facility} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">

@@ -54,5 +54,5 @@ function FooterCol({ title, links }: { title: string; links: { to: string; label
 }
 
 export function MarketingShell({ children }: { children: React.ReactNode }) {
-  return <div className="flex min-h-screen flex-col">{children}</div>;
+  return <div id="main" tabIndex={-1} className="flex min-h-screen flex-col outline-none">{children}</div>;
 }

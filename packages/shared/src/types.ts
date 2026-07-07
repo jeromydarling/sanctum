@@ -51,6 +51,7 @@ export interface Facility {
   stripe_account_id: string | null;
   stripe_onboarded: Bool;
   stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
   plan: Plan;
   subscription_status: string;
   is_listed: Bool;

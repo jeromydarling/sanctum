@@ -57,7 +57,10 @@
     "QBO_ENV": "production",
     // Cloudflare Turnstile site key (public). Paste your widget's site key here to
     // enable bot protection; the matching TURNSTILE_SECRET_KEY is a Worker secret.
-    "TURNSTILE_SITE_KEY": ""
+    "TURNSTILE_SITE_KEY": "",
+    // Google Search Console verification token (public). Paste the content value
+    // from the "HTML tag" method here; the Worker injects the meta tag on every page.
+    "GSC_VERIFICATION": ""
   },
   // Cloudflare Images — enabled.
   "images": {

@@ -33,6 +33,8 @@ export default function Settings() {
   const [agreementBusy, setAgreementBusy] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [saveOfferOpen, setSaveOfferOpen] = useState(false);
+  const [subBusy, setSubBusy] = useState(false);
 
   if (!facility || !form) return <EmptyState title="No facility yet" icon={<Building2 className="h-8 w-8" />} />;
   function set<K extends keyof Facility>(k: K, v: Facility[K]) { setForm((f) => (f ? { ...f, [k]: v } : f)); }
@@ -82,6 +84,16 @@ export default function Settings() {
       if (res.url) { window.location.href = res.url; return; }
       toast.info(res.error || 'Billing management opens once you have an active paid subscription.');
     } catch (e) { notifyError(e); } finally { setBillingBusy(false); }
+  }
+
+  async function subscriptionAction(action: 'pause' | 'resume' | 'cancel') {
+    setSubBusy(true);
+    try {
+      const res = await api<{ status?: string }>('/stripe/subscription', { body: { facility_id: facility!.id, action } });
+      if (res.status) set('subscription_status', res.status);
+      setSaveOfferOpen(false);
+      toast.success(action === 'pause' ? 'Billing paused — resume anytime.' : action === 'resume' ? 'Welcome back — your plan is active.' : 'Your plan will not renew.');
+    } catch (e) { notifyError(e); } finally { setSubBusy(false); }
   }
 
   async function choosePlan(p: import('@sanctum/shared').Plan) {
@@ -195,9 +207,16 @@ export default function Settings() {
             );
           })}
         </div>
-        <div className="mt-4 flex items-center justify-between border-t border-black/5 pt-4">
-          <p className="text-sm text-stone-warm">Update your card, download invoices, or cancel anytime.</p>
-          <Button variant="outline" loading={billingBusy} onClick={manageBilling}><CreditCard className="h-4 w-4" /> Manage billing</Button>
+        <div className="mt-4 flex flex-col gap-3 border-t border-black/5 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-stone-warm">Update your card, download invoices, pause, or cancel — anytime.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" loading={billingBusy} onClick={manageBilling}><CreditCard className="h-4 w-4" /> Manage billing</Button>
+            {form.subscription_status === 'paused' ? (
+              <Button loading={subBusy} onClick={() => subscriptionAction('resume')}>Resume plan</Button>
+            ) : (
+              <Button variant="ghost" className="text-stone-warm" onClick={() => setSaveOfferOpen(true)}>Pause or cancel</Button>
+            )}
+          </div>
         </div>
       </CardBody></Card>
 
@@ -211,6 +230,21 @@ export default function Settings() {
       </CardBody></Card>
 
       <ImageStudio open={studio} onClose={() => setStudio(false)} suggestedPrompt={`exterior of ${form.name}, a welcoming community building`} onApply={(url) => set('cover_image_url', url)} />
+
+      <Modal open={saveOfferOpen} onClose={() => setSaveOfferOpen(false)} title="Before you go">
+        <div className="space-y-4">
+          <p className="text-sm text-stone-warm">If money or timing is tight, you don’t have to cancel. <span className="font-medium text-ink">Pause your plan</span> — we’ll stop billing you, keep your spaces and history safe, and you can resume in one click whenever you’re ready.</p>
+          <div className="rounded-card border border-primary/20 bg-primary-50/50 p-4">
+            <p className="font-semibold text-primary-700">Pause billing</p>
+            <p className="mt-0.5 text-sm text-stone-warm">No charge while paused. Your listings are hidden until you resume.</p>
+            <Button className="mt-3" loading={subBusy} onClick={() => subscriptionAction('pause')}>Pause my plan</Button>
+          </div>
+          <div className="flex items-center justify-between gap-2 border-t border-black/5 pt-3">
+            <button onClick={() => subscriptionAction('cancel')} disabled={subBusy} className="text-sm font-medium text-danger hover:underline disabled:opacity-50">Cancel anyway</button>
+            <Button variant="ghost" onClick={() => setSaveOfferOpen(false)}>Never mind</Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Delete your account?">
         <p className="text-sm text-stone-warm">This permanently erases your facility, spaces, bookings, and documents. This cannot be undone.</p>

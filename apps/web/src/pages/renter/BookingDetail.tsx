@@ -126,7 +126,7 @@ function ReviewModal({ booking, renterId, onClose }: { booking: import('@sanctum
       <div className="space-y-4">
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map((n) => (
-            <button key={n} onClick={() => setRating(n)}><Star className={cn('h-8 w-8', n <= rating ? 'fill-gold text-gold' : 'text-black/15')} /></button>
+            <button key={n} type="button" aria-label={`${n} star${n > 1 ? 's' : ''}`} aria-pressed={n === rating} onClick={() => setRating(n)}><Star className={cn('h-8 w-8', n <= rating ? 'fill-gold text-gold' : 'text-black/15')} /></button>
           ))}
         </div>
         <Input label="Headline" value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="A wonderful space" />

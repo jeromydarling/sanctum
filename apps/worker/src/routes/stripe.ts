@@ -186,6 +186,45 @@ export async function handleBillingPortal(env: Env, req: Request, auth: AuthCont
   return json({ url: session.url });
 }
 
+/**
+ * POST /api/stripe/subscription { facility_id, action: 'pause'|'resume'|'cancel' }
+ * Powers the retention save-offer: pause billing (keep the account, stop the
+ * charge) instead of losing the operator, and resume in one click. Simulated
+ * when Stripe isn't configured.
+ */
+export async function handleSubscriptionAction(env: Env, req: Request, auth: AuthContext): Promise<Response> {
+  const { facility_id, action } = await readJson<{ facility_id?: string; action?: string }>(req);
+  if (!facility_id) return err('facility_id is required', 422);
+  if (!['pause', 'resume', 'cancel'].includes(action || '')) return err('Unknown action', 422);
+  if (!(await operatesFacility(env, auth.id, facility_id)) && auth.role !== 'admin') {
+    return err('Only the facility operator can change the plan', 403);
+  }
+  const facility = await env.DB.prepare('SELECT stripe_subscription_id FROM facilities WHERE id = ?')
+    .bind(facility_id).first<{ stripe_subscription_id: string | null }>();
+
+  const newStatus = action === 'resume' ? 'active' : action === 'pause' ? 'paused' : 'canceled';
+
+  // Update Stripe when we have a live subscription; otherwise just reflect locally.
+  if (env.STRIPE_SECRET_KEY && facility?.stripe_subscription_id) {
+    const id = facility.stripe_subscription_id;
+    try {
+      if (action === 'pause') {
+        await stripeCall(env, `/subscriptions/${id}`, { 'pause_collection[behavior]': 'void' });
+      } else if (action === 'resume') {
+        await stripeCall(env, `/subscriptions/${id}`, { pause_collection: '' });
+      } else {
+        await stripeCall(env, `/subscriptions/${id}`, { cancel_at_period_end: 'true' });
+      }
+    } catch (e) {
+      return err(`Couldn't update your subscription: ${(e as Error).message}`, 502);
+    }
+  }
+
+  await env.DB.prepare('UPDATE facilities SET subscription_status = ?, updated_at = ? WHERE id = ?')
+    .bind(newStatus, nowISO(), facility_id).run();
+  return json({ ok: true, status: newStatus });
+}
+
 /** POST /api/bookings/:id/deposit { action:'return'|'withhold', keep_cents?, note? } */
 export async function handleDepositResolve(env: Env, req: Request, auth: AuthContext, bookingId: string): Promise<Response> {
   const booking = await env.DB.prepare('SELECT * FROM bookings WHERE id = ?').bind(bookingId).first<Record<string, unknown>>();
@@ -295,9 +334,10 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
         const facilityId = (obj.client_reference_id as string) || '';
         const plan = (obj.metadata as Record<string, string>)?.plan;
         const customer = (obj.customer as string) || null;
+        const subscription = (obj.subscription as string) || null;
         if (facilityId && plan) {
-          await env.DB.prepare('UPDATE facilities SET plan = ?, subscription_status = ?, stripe_customer_id = COALESCE(?, stripe_customer_id), updated_at = ? WHERE id = ?')
-            .bind(plan, 'active', customer, nowISO(), facilityId).run();
+          await env.DB.prepare('UPDATE facilities SET plan = ?, subscription_status = ?, stripe_customer_id = COALESCE(?, stripe_customer_id), stripe_subscription_id = COALESCE(?, stripe_subscription_id), updated_at = ? WHERE id = ?')
+            .bind(plan, 'active', customer, subscription, nowISO(), facilityId).run();
         }
         break;
       }
@@ -332,10 +372,16 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted': {
       const customer = (obj.customer as string) || '';
-      const status = event.type === 'customer.subscription.deleted' ? 'canceled' : (obj.status as string) || 'active';
+      const subId = (obj.id as string) || null;
+      // A paused subscription reports status 'active' with pause_collection set —
+      // reflect the pause so the recovery banner and save-offer stay in sync.
+      const paused = !!obj.pause_collection;
+      const status = event.type === 'customer.subscription.deleted'
+        ? 'canceled'
+        : paused ? 'paused' : (obj.status as string) || 'active';
       if (customer) {
-        await env.DB.prepare('UPDATE facilities SET subscription_status = ?, updated_at = ? WHERE stripe_customer_id = ?')
-          .bind(status, nowISO(), customer).run();
+        await env.DB.prepare('UPDATE facilities SET subscription_status = ?, stripe_subscription_id = COALESCE(?, stripe_subscription_id), updated_at = ? WHERE stripe_customer_id = ?')
+          .bind(status, subId, nowISO(), customer).run();
       }
       break;
     }

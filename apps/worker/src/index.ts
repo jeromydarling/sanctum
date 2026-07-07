@@ -15,7 +15,7 @@ import { handleDiscover, handleFacilityBySlug, handleEventBySlug, handleInquiry,
 import { handleAITool, handleAIImage, handleOnboard, handleTranslateBatch } from './routes/ai.js';
 import { handleUpload, handleFileServe } from './routes/files.js';
 import { handleTelemetry, handleExport, handleDeleteAccount, handlePurgeUser, handleTestEmails } from './routes/misc.js';
-import { handleConnectAccount, handleCheckout, handleWebhook, handleSubscribe, handleBillingPortal, handleDepositResolve } from './routes/stripe.js';
+import { handleConnectAccount, handleCheckout, handleWebhook, handleSubscribe, handleBillingPortal, handleSubscriptionAction, handleDepositResolve } from './routes/stripe.js';
 import { handleAdminErrors, handleAdminAnnounce, handleAdminMessage } from './routes/admin.js';
 import { handleNetworkInvite, handleInviteInfo, handleNetworkAccept, handleNetworkJoin, handleNetworkLeave } from './routes/networks.js';
 import { handleQboConnect, handleQboCallback, handleQboStatus, handleQboDisconnect, handleQboSync } from './routes/qbo.js';
@@ -238,6 +238,7 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   if (path === '/api/stripe/checkout' && method === 'POST') return handleCheckout(env, req, auth);
   if (path === '/api/stripe/subscribe' && method === 'POST') return handleSubscribe(env, req, auth);
   if (path === '/api/stripe/portal' && method === 'POST') return handleBillingPortal(env, req, auth);
+  if (path === '/api/stripe/subscription' && method === 'POST') return handleSubscriptionAction(env, req, auth);
 
   // QuickBooks Online
   if (path === '/api/qbo/connect' && method === 'GET') return handleQboConnect(env, url, auth);

@@ -26,9 +26,17 @@ export function BillingBanner({ facility }: { facility: Facility }) {
   async function fix() {
     setBusy(true);
     try {
+      // Paused → resume in one click (the save-offer's happy path).
+      if (status === 'paused') {
+        await api('/stripe/subscription', { body: { facility_id: facility.id, action: 'resume' } });
+        window.location.reload();
+        return;
+      }
+      // Canceled → reactivate by picking a plan again.
+      if (status === 'canceled') { window.location.href = '/operator/settings'; return; }
+      // Failed card → the Stripe billing portal (or Settings when simulated).
       const res = await api<{ url?: string; error?: string }>('/stripe/portal', { body: { facility_id: facility.id } });
       if (res.url) { window.location.href = res.url; return; }
-      // Simulated / no live billing yet — send them to the plan picker in Settings.
       window.location.href = '/operator/settings';
     } catch (e) { notifyError(e); } finally { setBusy(false); }
   }

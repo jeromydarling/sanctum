@@ -3,7 +3,7 @@
  * simulated ({demo:true}). Webhooks are signature-verified (HMAC-SHA256 over
  * `${t}.${payload}`, constant-time compare).
  */
-import { platformFeeCents } from '@sanctum/shared';
+import { platformFeeCents, PLAN_DETAILS, PLANS, type Plan } from '@sanctum/shared';
 import type { Env, AuthContext } from '../types.js';
 import { json, err, readJson, nowISO, genId } from '../http.js';
 import { operatesFacility } from '../db.js';
@@ -137,9 +137,9 @@ export async function handleSubscribe(env: Env, req: Request, auth: AuthContext)
   if (!(await operatesFacility(env, auth.id, facility_id)) && auth.role !== 'admin') {
     return err('Only the facility operator can change the plan', 403);
   }
-  const prices: Record<string, number> = { starter: 900, growth: 1900, pro: 2900 };
-  const amount = prices[plan];
-  if (!amount) return err('Unknown plan', 422);
+  // Single source of truth for plan prices — shared with the web app's pricing UI.
+  if (!PLANS.includes(plan as Plan)) return err('Unknown plan', 422);
+  const amount = PLAN_DETAILS[plan as Plan].priceCents;
 
   if (!env.STRIPE_SECRET_KEY) {
     // Simulate the subscription so the demo/non-configured flow completes.

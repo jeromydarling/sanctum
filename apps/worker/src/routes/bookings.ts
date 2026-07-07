@@ -13,6 +13,7 @@ import type { Env, AuthContext } from '../types.js';
 import { json, err, readJson, genId, nowISO, clientIP } from '../http.js';
 import { operatesFacility } from '../db.js';
 import { insertBookingViaLock } from '../booking-lock.js';
+import { refundBooking } from '../stripe-client.js';
 import { sendEmail, emailLayout } from '../email/index.js';
 
 interface CreateBookingBody {
@@ -257,13 +258,29 @@ export async function handleBookingStatus(
   }
 
   const ts = nowISO();
+
+  // Cancelling a PAID booking refunds the renter in full — the rental and any
+  // held deposit — reversing the transfer and returning Sanctum's platform fee
+  // (priced for access, not extraction). Best-effort; simulated without Stripe.
+  let depositStatusAfter = booking.deposit_status as string | null;
+  if (action === 'cancel' && booking.balance_paid_at) {
+    const held = booking.deposit_status === 'held' ? Number(booking.deposit_cents || 0) : 0;
+    const amount = Number(booking.subtotal_cents || 0) + held;
+    if (amount > 0) {
+      const res = await refundBooking(env, booking, { amountCents: amount, reverseTransfer: true, refundApplicationFee: true });
+      if (res.error) return err(`Refund failed: ${res.error}`, 502);
+      if (held > 0) depositStatusAfter = 'returned';
+    }
+  }
+
   await env.DB.prepare(
-    `UPDATE bookings SET status = ?, denial_reason = ?, cancellation_reason = ?, updated_at = ? WHERE id = ?`,
+    `UPDATE bookings SET status = ?, denial_reason = ?, cancellation_reason = ?, deposit_status = ?, updated_at = ? WHERE id = ?`,
   )
     .bind(
       newStatus,
       action === 'deny' ? body.reason || 'Not available' : booking.denial_reason || null,
       action === 'cancel' ? body.reason || null : booking.cancellation_reason || null,
+      depositStatusAfter,
       ts,
       bookingId,
     )

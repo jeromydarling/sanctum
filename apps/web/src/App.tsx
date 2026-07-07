@@ -61,6 +61,8 @@ const AdminLayout = lazy(() => import('./pages/admin/AdminLayout.js'));
 const AdminOverview = lazy(() => import('./pages/admin/Overview.js'));
 const AdminFacilities = lazy(() => import('./pages/admin/Facilities.js'));
 const AdminUsers = lazy(() => import('./pages/admin/Users.js'));
+const AdminCustomers = lazy(() => import('./pages/admin/Customers.js'));
+const AdminCustomerDetail = lazy(() => import('./pages/admin/CustomerDetail.js'));
 const AdminNetworks = lazy(() => import('./pages/admin/Networks.js'));
 const AdminAnnouncements = lazy(() => import('./pages/admin/Announcements.js'));
 const AdminErrors = lazy(() => import('./pages/admin/Errors.js'));
@@ -144,6 +146,8 @@ export function App() {
 
         <Route path="/admin" element={<Protected roles={['admin']}><AdminLayout /></Protected>}>
           <Route index element={<AdminOverview />} />
+          <Route path="customers" element={<AdminCustomers />} />
+          <Route path="customers/:id" element={<AdminCustomerDetail />} />
           <Route path="facilities" element={<AdminFacilities />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="networks" element={<AdminNetworks />} />

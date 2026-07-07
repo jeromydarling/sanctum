@@ -306,6 +306,20 @@ export interface CrmInteraction {
   updated_at: ISODate;
 }
 
+/** Platform-level CRM note on a customer (operator/facility). Admin-only. */
+export interface AdminNote {
+  id: string;
+  subject_kind: 'operator' | 'facility';
+  subject_id: string;
+  kind: 'note' | 'call' | 'email' | 'task';
+  body: string;
+  due_at: string | null;
+  done: Bool;
+  created_by: string | null;
+  created_at: ISODate;
+  updated_at: ISODate;
+}
+
 export interface Lease {
   id: string;
   facility_id: string;
@@ -343,7 +357,8 @@ export type GenericTable =
   | 'pricing_rules'
   | 'leases'
   | 'networks'
-  | 'crm_interactions';
+  | 'crm_interactions'
+  | 'admin_notes';
 
 /** Tables that bypass the generic upsert (money/conflict-sensitive). */
 export type ProtectedTable = 'bookings' | 'invoices';

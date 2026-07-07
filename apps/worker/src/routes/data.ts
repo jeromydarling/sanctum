@@ -78,6 +78,7 @@ export async function handleHydrate(env: Env, auth: AuthContext): Promise<Respon
     leases: [],
     networks: [],
     crm_interactions: [],
+    admin_notes: [],
   };
 
   // Own profile + notifications always.
@@ -86,7 +87,7 @@ export async function handleHydrate(env: Env, auth: AuthContext): Promise<Respon
 
   if (auth.role === 'admin') {
     out.profiles = await selectAll(env, 'profiles');
-    for (const t of ['facilities', 'spaces', 'resources', 'reviews', 'leads', 'event_microsites', 'networks'] as GenericTable[]) {
+    for (const t of ['facilities', 'spaces', 'resources', 'reviews', 'leads', 'event_microsites', 'networks', 'admin_notes'] as GenericTable[]) {
       out[t] = await selectAll(env, t);
     }
     out.bookings = await raw(env, 'bookings');

@@ -127,6 +127,10 @@ export const TABLES: Record<GenericTable, TableDef> = {
     columns: ['id', 'facility_id', 'subject_kind', 'subject_id', 'kind', 'body', 'due_at', 'done', 'created_by', 'created_at', 'updated_at'],
     jsonColumns: [],
   },
+  admin_notes: {
+    columns: ['id', 'subject_kind', 'subject_id', 'kind', 'body', 'due_at', 'done', 'created_by', 'created_at', 'updated_at'],
+    jsonColumns: [],
+  },
 };
 
 export function isGenericTable(t: string): t is GenericTable {

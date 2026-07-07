@@ -16,7 +16,7 @@ import { handleAITool, handleAIImage, handleOnboard, handleTranslateBatch } from
 import { handleUpload, handleFileServe } from './routes/files.js';
 import { handleTelemetry, handleExport, handleDeleteAccount, handlePurgeUser, handleTestEmails } from './routes/misc.js';
 import { handleConnectAccount, handleCheckout, handleWebhook, handleSubscribe, handleBillingPortal, handleDepositResolve } from './routes/stripe.js';
-import { handleAdminErrors, handleAdminAnnounce } from './routes/admin.js';
+import { handleAdminErrors, handleAdminAnnounce, handleAdminMessage } from './routes/admin.js';
 import { handleNetworkInvite, handleInviteInfo, handleNetworkAccept, handleNetworkJoin, handleNetworkLeave } from './routes/networks.js';
 import { handleQboConnect, handleQboCallback, handleQboStatus, handleQboDisconnect, handleQboSync } from './routes/qbo.js';
 import { handleIcalExport, handleSubscribeUrl, handleIcalImport } from './routes/ical.js';
@@ -203,6 +203,7 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   // Admin
   if (path === '/api/admin/errors' && method === 'GET') return handleAdminErrors(env, auth);
   if (path === '/api/admin/announce' && method === 'POST') return handleAdminAnnounce(env, req, auth);
+  if (path === '/api/admin/message' && method === 'POST') return handleAdminMessage(env, req, auth);
 
   // Stripe (authenticated)
   if (path === '/api/stripe/connect/create-account' && method === 'POST') return handleConnectAccount(env, req, auth);

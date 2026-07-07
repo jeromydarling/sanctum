@@ -83,6 +83,9 @@ export async function canWrite(
     case 'leases':
     case 'crm_interactions':
       return operatesFacility(env, auth.id, row.facility_id as string);
+    case 'admin_notes':
+      // Platform CRM notes are admin-only; admins already returned true above.
+      return false;
     case 'event_microsites':
       return (
         row.renter_id === auth.id ||

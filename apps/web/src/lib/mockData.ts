@@ -6,7 +6,7 @@
 import type {
   Profile, Facility, Space, Resource, Booking, ComplianceDoc,
   Invoice, Review, Lead, Notification, EventMicrosite, AvailabilityBlock, PricingRule, Lease, Network,
-  CrmInteraction,
+  CrmInteraction, AdminNote,
 } from '@sanctum/shared';
 
 export interface StoreData {
@@ -26,6 +26,7 @@ export interface StoreData {
   leases: Lease[];
   networks: Network[];
   crm_interactions: CrmInteraction[];
+  admin_notes: AdminNote[];
 }
 
 const NOW = '2026-06-01T12:00:00.000Z';
@@ -215,10 +216,15 @@ export function freshStore(): StoreData {
     { id: 'ti-5', facility_id: FAC, subject_kind: 'renter', subject_id: 'usr-demo-renter', kind: 'reminder', body: 'Send a thank-you note after the Spring Benefit Dinner.', due_at: '2026-06-14T12:00:00.000Z', done: 0, created_by: 'usr-demo-operator', created_at: '2026-05-18T14:01:00.000Z', updated_at: '2026-05-18T14:01:00.000Z' },
   ];
 
+  const admin_notes: AdminNote[] = [
+    { id: 'an-1', subject_kind: 'operator', subject_id: 'usr-demo-operator', kind: 'note', body: 'Flagship reference account — St. Brigid. Grace is a great advocate; happy to do a case study.', due_at: null, done: 0, created_by: 'usr-demo-admin', created_at: '2026-02-10T15:00:00.000Z', updated_at: '2026-02-10T15:00:00.000Z' },
+    { id: 'an-2', subject_kind: 'operator', subject_id: 'usr-demo-operator', kind: 'task', body: 'Check in on Growth plan value — offer a QuickBooks onboarding call.', due_at: '2026-06-25T12:00:00.000Z', done: 0, created_by: 'usr-demo-admin', created_at: '2026-05-20T14:00:00.000Z', updated_at: '2026-05-20T14:00:00.000Z' },
+  ];
+
   return {
     profiles, facilities: [facility], spaces, resources, bookings,
     compliance_docs, invoices, reviews, leads, notifications, event_microsites,
-    availability_blocks: [], pricing_rules, leases, networks, crm_interactions,
+    availability_blocks: [], pricing_rules, leases, networks, crm_interactions, admin_notes,
   };
 }
 

@@ -83,7 +83,10 @@ export default function Onboarding() {
     setBusy(true);
     try {
       const now = new Date().toISOString();
-      await wt('facilities', { ...fac!, is_listed: 1, updated_at: now });
+      // Let wt() manage updated_at (it uses the loaded value as the optimistic-
+      // concurrency base). Overriding it here made the base never match the
+      // stored row, so Publish 409'd for a fresh operator.
+      await wt('facilities', { ...fac!, is_listed: 1 });
       for (const d of drafts) {
         if (!d.name.trim()) continue;
         const space: Space = {

@@ -16,7 +16,6 @@ test.describe('marketplace: list → discover → book → pay → confirmed', (
   const opEmail = uniqueEmail('mktop');
   const rtEmail = uniqueEmail('mktrent');
   const runId = Date.now();
-  const city = `E2Eville${runId}`;
   const orgName = `E2E Center ${runId}`;
   const spaceName = `E2E Hall ${runId}`;
   const eventName = `E2E Mkt Booking ${runId}`;
@@ -42,23 +41,12 @@ test.describe('marketplace: list → discover → book → pay → confirmed', (
     await rtCtx.close();
   });
 
-  test('operator lists a space in a unique city', async () => {
+  test('operator creates a bookable space (facility is listed by default)', async () => {
+    // A new operator's starter facility is is_listed=1 by default, so we only
+    // add a space — a fresh INSERT with no optimistic-concurrency conflict.
     await signUp(opPage, { email: opEmail, password: PASSWORD, name: 'E2E MktOp', org: orgName, role: 'operator' });
     await opPage.getByRole('button', { name: 'Skip for now' }).click();
     await expect(opPage).toHaveURL(/\/operator$/);
-
-    await opPage.goto('/operator/settings');
-    await expect(opPage.getByRole('heading', { name: /^Settings$/ })).toBeVisible();
-    await opPage.getByLabel('City').fill(city);
-    const listToggle = opPage.getByLabel(/List us in public discovery/);
-    if (!(await listToggle.isChecked())) await listToggle.check();
-    // Capture the write result (surfaces the HTTP status on failure) instead of
-    // depending on a transient toast.
-    const [resp] = await Promise.all([
-      opPage.waitForResponse((r) => r.url().includes('/api/data/upsert') && r.request().method() === 'POST'),
-      opPage.getByRole('button', { name: 'Save changes', exact: true }).click(),
-    ]);
-    expect(resp.ok(), `facility upsert returned HTTP ${resp.status()}`).toBeTruthy();
 
     await opPage.goto('/operator/spaces');
     await opPage.getByRole('button', { name: 'Add space', exact: true }).click();
@@ -71,16 +59,16 @@ test.describe('marketplace: list → discover → book → pay → confirmed', (
   });
 
   test('the listing is publicly discoverable with per-route SEO meta', async () => {
-    // Poll discovery until the new listing (unique city, with a space) appears.
+    // Poll discovery until the operator's listing (unique name, with a space) appears.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let fac: any;
     await expect(async () => {
-      const res = await opPage.request.get(`/api/public/discover?city=${encodeURIComponent(city)}`);
+      const res = await opPage.request.get('/api/public/discover');
       expect(res.ok()).toBeTruthy();
       const body = await res.json();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      fac = (body.facilities || []).find((f: any) => f.city === city && (f.spaces || []).length > 0);
-      expect(fac, `a facility in ${city} with a space should be discoverable`).toBeTruthy();
+      fac = (body.facilities || []).find((f: any) => f.name === orgName && (f.spaces || []).length > 0);
+      expect(fac, `facility "${orgName}" with a space should be discoverable`).toBeTruthy();
     }).toPass({ timeout: 20_000 });
 
     facilityId = fac.id;

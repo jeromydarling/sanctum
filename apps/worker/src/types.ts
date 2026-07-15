@@ -20,6 +20,7 @@ export interface Env {
   QBO_ENV?: string; // 'sandbox' | 'production'
   TURNSTILE_SITE_KEY?: string; // public
   GSC_VERIFICATION?: string; // Google Search Console verification token (public)
+  CF_ANALYTICS_TOKEN?: string; // Cloudflare Web Analytics beacon token (public, cookieless)
   /**
    * Email verification gate. Default OFF: any value other than "on" means new
    * signups are created already-verified and may use the app immediately.

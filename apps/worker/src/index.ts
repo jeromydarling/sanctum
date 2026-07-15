@@ -5,7 +5,8 @@
  */
 import * as Sentry from '@sentry/cloudflare';
 import type { Env, AuthContext } from './types.js';
-import { json, err, genId, nowISO } from './http.js';
+import { json, err, genId, nowISO, clientIP } from './http.js';
+import { rateLimited } from './rate-limit.js';
 import { authFromRequest } from './auth.js';
 import { handleSignup, handleLogin, handleMe, handleForgotPassword, handleResetPassword, handleVerifyEmail } from './routes/auth.js';
 import { handleUpsert, handleDelete, handleHydrate } from './routes/data.js';
@@ -139,6 +140,12 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   if (path === '/api/health') return json({ ok: true, ts: nowISO(), version: env.CF_VERSION_METADATA?.id ?? null });
   if (path === '/api/config' && method === 'GET') {
     return json({ turnstile_site_key: env.TURNSTILE_SITE_KEY || null });
+  }
+  // Abuse throttling on unauthenticated write endpoints (complements Turnstile).
+  if (method === 'POST' && ['/api/auth/signup', '/api/auth/login', '/api/auth/forgot', '/api/public/inquiry'].includes(path)) {
+    if (await rateLimited(env, path, clientIP(req))) {
+      return err('Too many attempts. Please wait a minute and try again.', 429);
+    }
   }
   if (path === '/api/auth/signup' && method === 'POST') return handleSignup(env, req);
   if (path === '/api/auth/login' && method === 'POST') return handleLogin(env, req);

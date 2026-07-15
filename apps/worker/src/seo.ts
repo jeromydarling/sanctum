@@ -114,6 +114,8 @@ export function injectMeta(res: Response, meta: Meta, env: Env): Response {
     meta.ogImage ? `<meta property="og:image" content="${esc(meta.ogImage)}" />` : '',
     meta.ogImage ? `<meta name="twitter:image" content="${esc(meta.ogImage)}" />` : '',
     env.GSC_VERIFICATION ? `<meta name="google-site-verification" content="${esc(env.GSC_VERIFICATION)}" />` : '',
+    // Cloudflare Web Analytics — privacy-first, cookieless (no consent banner needed).
+    env.CF_ANALYTICS_TOKEN ? `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${esc(env.CF_ANALYTICS_TOKEN)}"}'></script>` : '',
   ].filter(Boolean).join('');
 
   return new HTMLRewriter()

@@ -4,6 +4,7 @@ import type { Env } from './types.js';
 import { genId, nowISO } from './http.js';
 import { sendEmail, emailLayout } from './email/index.js';
 import { syncFacilityCalendar } from './routes/ical.js';
+import { pruneRateLimits } from './rate-limit.js';
 
 export async function runScheduled(env: Env): Promise<void> {
   await coiExpirySweep(env);
@@ -11,6 +12,7 @@ export async function runScheduled(env: Env): Promise<void> {
   await reviewRequests(env);
   await syncExternalCalendars(env);
   await monthlyAutoInvoicing(env);
+  await pruneRateLimits(env);
 }
 
 /** Re-import each facility's connected external calendar so internal events keep blocking. */

@@ -60,7 +60,10 @@
     "TURNSTILE_SITE_KEY": "",
     // Google Search Console verification token (public). Paste the content value
     // from the "HTML tag" method here; the Worker injects the meta tag on every page.
-    "GSC_VERIFICATION": ""
+    "GSC_VERIFICATION": "",
+    // Cloudflare Web Analytics beacon token (public, cookieless). Paste the token
+    // from the dashboard; the Worker injects the beacon on every page.
+    "CF_ANALYTICS_TOKEN": ""
   },
   // Cloudflare Images — enabled.
   "images": {

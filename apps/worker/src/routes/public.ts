@@ -4,10 +4,10 @@
  * (which would clobber the global directory).
  */
 import type { Env } from '../types.js';
-import { json, err, readJson, genId, nowISO, clientIP } from '../http.js';
+import { json, err, readJson, genId, nowISO } from '../http.js';
 import { decodeRow } from '../db.js';
 import { TABLES } from '../schema.js';
-import { verifyTurnstile } from '../turnstile.js';
+import { turnstileOk } from '../turnstile.js';
 
 /** GET /api/public/discover?city=&state=&type=&capacity= */
 export async function handleDiscover(env: Env, url: URL): Promise<Response> {
@@ -104,7 +104,7 @@ export async function handleEventBySlug(env: Env, slug: string): Promise<Respons
 /** POST /api/public/inquiry — public lead capture (creates a lead + notifies operator). */
 export async function handleInquiry(env: Env, req: Request): Promise<Response> {
   const b = await readJson<{ facility_id?: string; name?: string; email?: string; organization?: string; message?: string; space_id?: string; turnstile_token?: string }>(req);
-  if (!(await verifyTurnstile(env, b.turnstile_token, clientIP(req)))) {
+  if (!(await turnstileOk(env, req, b.turnstile_token, b.email))) {
     return err('Please complete the verification challenge', 403);
   }
   if (!b.facility_id || !b.name?.trim() || !b.message?.trim()) {

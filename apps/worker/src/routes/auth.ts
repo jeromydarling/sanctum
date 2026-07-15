@@ -1,10 +1,10 @@
 /** Auth routes: signup, login, me. Live D1-backed. */
 import { slugify, starterFacilityId, type Role } from '@sanctum/shared';
 import type { Env, AuthContext } from '../types.js';
-import { json, err, readJson, genId, nowISO, clientIP } from '../http.js';
+import { json, err, readJson, genId, nowISO } from '../http.js';
 import { hashPassword, verifyPassword, issueToken } from '../auth.js';
 import { sendEmail, emailLayout } from '../email/index.js';
-import { verifyTurnstile } from '../turnstile.js';
+import { turnstileOk } from '../turnstile.js';
 
 interface SignupBody {
   email?: string;
@@ -19,7 +19,7 @@ const VALID_ROLES: Role[] = ['operator', 'renter'];
 
 export async function handleSignup(env: Env, req: Request): Promise<Response> {
   const body = await readJson<SignupBody>(req);
-  if (!(await verifyTurnstile(env, body.turnstile_token, clientIP(req)))) {
+  if (!(await turnstileOk(env, req, body.turnstile_token, body.email))) {
     return err('Please complete the verification challenge', 403);
   }
   const email = (body.email || '').trim().toLowerCase();
@@ -137,7 +137,7 @@ async function sha256hex(input: string): Promise<string> {
 /** POST /api/auth/forgot { email } — always returns ok (no account enumeration). */
 export async function handleForgotPassword(env: Env, req: Request): Promise<Response> {
   const body = await readJson<{ email?: string; turnstile_token?: string }>(req);
-  if (!(await verifyTurnstile(env, body.turnstile_token, clientIP(req)))) {
+  if (!(await turnstileOk(env, req, body.turnstile_token, body.email))) {
     return err('Please complete the verification challenge', 403);
   }
   const clean = (body.email || '').trim().toLowerCase();
@@ -193,7 +193,7 @@ export async function handleResetPassword(env: Env, req: Request): Promise<Respo
 
 export async function handleLogin(env: Env, req: Request): Promise<Response> {
   const body = await readJson<{ email?: string; password?: string; turnstile_token?: string }>(req);
-  if (!(await verifyTurnstile(env, body.turnstile_token, clientIP(req)))) {
+  if (!(await turnstileOk(env, req, body.turnstile_token, body.email))) {
     return err('Please complete the verification challenge', 403);
   }
   const email = (body.email || '').trim().toLowerCase();

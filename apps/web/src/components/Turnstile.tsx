@@ -39,6 +39,15 @@ export function Turnstile({ onChange }: { onChange: (s: TurnstileState) => void 
 
   useEffect(() => {
     let cancelled = false;
+    // Automated end-to-end tests can't solve a real challenge, so skip the widget
+    // under WebDriver and let the form submit freely. This is safe: the server is
+    // the real gate — it still requires a valid token for anyone who isn't a
+    // trusted E2E request (guard token + e2e+ address), so skipping the widget
+    // here gains a real attacker nothing.
+    if (typeof navigator !== 'undefined' && navigator.webdriver) {
+      onChange({ active: false, token: null });
+      return;
+    }
     getPublicConfig().then((cfg) => {
       if (cancelled) return;
       if (cfg.turnstile_site_key) setSiteKey(cfg.turnstile_site_key);

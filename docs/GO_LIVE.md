@@ -27,6 +27,15 @@ recorded in `email_log`) but not delivered. No code change needed.
 - `TURNSTILE_SITE_KEY` — public, paste into `wrangler.jsonc` `vars`.
 - `TURNSTILE_SECRET_KEY` — secret.
 
+## E2E guard token (recommended once Turnstile is on)
+`E2E_ADMIN_TOKEN` gates the disposable-account test paths (purge, payment
+simulation, and the Turnstile bypass — all restricted to `e2e+` addresses).
+Both sides fall back to a public default, so for airtight production set a
+strong random value as a **Worker secret** `E2E_ADMIN_TOKEN` *and* store the
+same value as the repo's `E2E_ADMIN_TOKEN` GitHub Actions secret so E2E keeps
+passing. Low-risk until then (bypass is limited to throwaway `e2e+` emails and
+rate-limited), but this closes it entirely.
+
 ## SEO — Google Search Console
 1. In GSC, add `sanctum.garden`, choose the **HTML tag** method, copy the
    `content="…"` value.

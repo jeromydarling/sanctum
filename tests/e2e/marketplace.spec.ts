@@ -22,6 +22,7 @@ test.describe('marketplace: list → discover → book → pay → confirmed', (
   let facilityId = '';
   let spaceId = '';
   let facilitySlug = '';
+  let bookingId = '';
 
   test.beforeAll(async ({ browser }) => {
     // Both contexts carry the guard token so payouts/payment simulate for e2e+ accounts.
@@ -103,6 +104,8 @@ test.describe('marketplace: list → discover → book → pay → confirmed', (
     await rtPage.getByRole('button', { name: /Confirm & continue/ }).click();
 
     await expect(rtPage).toHaveURL(/\/renter\/bookings\/.+/, { timeout: 20_000 });
+    bookingId = new URL(rtPage.url()).pathname.split('/').pop() || '';
+    expect(bookingId).toBeTruthy();
     const pay = rtPage.getByRole('button', { name: /Pay & confirm/ });
     await expect(pay).toBeVisible({ timeout: 20_000 });
     await pay.click();
@@ -112,11 +115,10 @@ test.describe('marketplace: list → discover → book → pay → confirmed', (
   });
 
   test('the operator sees the confirmed booking', async () => {
-    await opPage.goto('/operator/bookings');
-    await expect(opPage.getByRole('heading', { name: /^Bookings$/ })).toBeVisible();
-    // A confirmed future booking lives under the Upcoming tab.
-    const upcoming = opPage.getByRole('button', { name: /Upcoming/ });
-    if (await upcoming.isVisible().catch(() => false)) await upcoming.click();
-    await expect(opPage.getByText(eventName).first()).toBeVisible({ timeout: 20_000 });
+    // Go straight to the booking on the operator side (no tab dependency) — the
+    // operator's hydrate includes bookings for their facility.
+    await opPage.goto(`/operator/bookings/${bookingId}`);
+    await expect(opPage.getByRole('heading', { name: eventName })).toBeVisible({ timeout: 20_000 });
+    await expect(opPage.getByText(/Confirmed/i).first()).toBeVisible();
   });
 });

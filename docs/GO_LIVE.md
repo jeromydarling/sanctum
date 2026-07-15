@@ -34,5 +34,38 @@ recorded in `email_log`) but not delivered. No code change needed.
    push — the Worker injects `<meta name="google-site-verification">` on every page.
 3. Back in GSC, verify, then submit `https://sanctum.garden/sitemap.xml`.
 
+## Analytics (Cloudflare Web Analytics — cookieless)
+`CF_ANALYTICS_TOKEN` — public beacon token from **Cloudflare dashboard → Analytics
+& Logs → Web Analytics**. Paste into `wrangler.jsonc` `vars` and push; the Worker
+injects the beacon on every page. No cookies, no consent banner required.
+
+## Error monitoring (optional)
+`SENTRY_DSN` secret enables server-side error reporting.
+
 ## QuickBooks (optional)
 `QBO_CLIENT_ID` / `QBO_CLIENT_SECRET` secrets enable the accounting sync.
+
+## Production data
+The public demo listing (**St. Brigid Community Center**, its 5 spaces, and the
+*Youth Spring Recital* event page) has been **unlisted** from production D1 so it no
+longer appears in discovery, the sitemap, or public facility pages. The rows are
+retained (flags flipped: `facilities.is_listed=0`, `spaces.is_active=0`,
+`event_microsites.is_published=0`) rather than deleted, so it can be re-listed for a
+screenshot/demo later. E2E tests self-provision their own accounts and listings, so
+they do not depend on this data.
+
+## Launch status — code vs dashboard
+**Done in code + deployed:** Turnstile wiring, transactional email + `email_log`,
+Stripe live-mode readiness (dual webhook secrets, refunds, subscriptions), Terms of
+Service + refund policy + signup acceptance, correct support email
+(`help@sanctum.garden`), rate limiting on public auth/inquiry, cookieless analytics
+hook, per-route SEO (meta/sitemap/robots/llms), GSC verification hook, demo-data
+teardown.
+
+**Remaining — dashboard-only, no code needed** (set the keys above, then verify):
+- Turnstile: create widget, set `TURNSTILE_SITE_KEY` (var) + `TURNSTILE_SECRET_KEY` (secret).
+- Email: verify `sanctum.garden` sending domain + SPF/DKIM/DMARC so mail delivers.
+- Stripe: complete platform profile, set the three secrets, register the webhook.
+- GSC: set `GSC_VERIFICATION`, verify, submit the sitemap.
+- Analytics: set `CF_ANALYTICS_TOKEN`.
+- (Optional) Sentry: set `SENTRY_DSN`. QuickBooks: set `QBO_*`.

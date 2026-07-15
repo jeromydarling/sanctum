@@ -142,3 +142,16 @@ export async function handleTestEmails(env: Env, url: URL): Promise<Response> {
   ).bind(to).all<Record<string, unknown>>()).results || [];
   return json({ emails: rows });
 }
+
+/**
+ * GET /api/admin/test/sentry?token=...
+ * Token-guarded Sentry heartbeat. Deliberately throws so the central error
+ * handler reports it to Sentry (tagged with an incident id) — proving error
+ * reporting is wired end-to-end without waiting for a real incident. Guarded by
+ * the admin token so it can never be used to spam error reports.
+ */
+export function handleTestSentry(env: Env, url: URL): Response {
+  const token = url.searchParams.get('token') || '';
+  if (token !== (env.E2E_ADMIN_TOKEN || DEFAULT_PURGE_TOKEN)) return err('Forbidden', 403);
+  throw new Error('Sentry heartbeat: deliberate test error from /api/admin/test/sentry');
+}

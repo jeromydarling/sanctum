@@ -52,8 +52,13 @@ test.describe('marketplace: list → discover → book → pay → confirmed', (
     await opPage.getByLabel('City').fill(city);
     const listToggle = opPage.getByLabel(/List us in public discovery/);
     if (!(await listToggle.isChecked())) await listToggle.check();
-    await opPage.getByRole('button', { name: 'Save changes', exact: true }).click();
-    await expect(opPage.getByText('Settings saved')).toBeVisible({ timeout: 15_000 });
+    // Capture the write result (surfaces the HTTP status on failure) instead of
+    // depending on a transient toast.
+    const [resp] = await Promise.all([
+      opPage.waitForResponse((r) => r.url().includes('/api/data/upsert') && r.request().method() === 'POST'),
+      opPage.getByRole('button', { name: 'Save changes', exact: true }).click(),
+    ]);
+    expect(resp.ok(), `facility upsert returned HTTP ${resp.status()}`).toBeTruthy();
 
     await opPage.goto('/operator/spaces');
     await opPage.getByRole('button', { name: 'Add space', exact: true }).click();
@@ -66,12 +71,18 @@ test.describe('marketplace: list → discover → book → pay → confirmed', (
   });
 
   test('the listing is publicly discoverable with per-route SEO meta', async () => {
-    const res = await opPage.request.get(`/api/public/discover?city=${encodeURIComponent(city)}`);
-    expect(res.ok()).toBeTruthy();
-    const body = await res.json();
+    // Poll discovery until the new listing (unique city, with a space) appears.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const fac = (body.facilities || []).find((f: any) => f.city === city);
-    expect(fac, `a facility in ${city} should be discoverable`).toBeTruthy();
+    let fac: any;
+    await expect(async () => {
+      const res = await opPage.request.get(`/api/public/discover?city=${encodeURIComponent(city)}`);
+      expect(res.ok()).toBeTruthy();
+      const body = await res.json();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      fac = (body.facilities || []).find((f: any) => f.city === city && (f.spaces || []).length > 0);
+      expect(fac, `a facility in ${city} with a space should be discoverable`).toBeTruthy();
+    }).toPass({ timeout: 20_000 });
+
     facilityId = fac.id;
     facilitySlug = fac.slug;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

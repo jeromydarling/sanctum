@@ -52,7 +52,7 @@ export default function Signup() {
           <Input label="Password" type="password" required minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} hint="At least 8 characters." placeholder="••••••••" />
           <Turnstile onChange={setTs} />
           <Button type="submit" full loading={busy}>Create my account <ArrowRight className="h-4 w-4" /></Button>
-          <p className="text-center text-xs text-stone-warm">Free for 30 days. No card required. By continuing you agree to our <Link to="/privacy" className="underline">privacy commitment</Link>.</p>
+          <p className="text-center text-xs text-stone-warm">Free for 30 days. No card required. By creating an account you agree to our <Link to="/terms" className="underline">Terms of Service</Link> and <Link to="/privacy" className="underline">Privacy Policy</Link>.</p>
         </form></Card>
       </div>
     </div>

@@ -11,6 +11,7 @@ const Pricing = lazy(() => import('./pages/marketing/Pricing.js'));
 const Features = lazy(() => import('./pages/marketing/Features.js'));
 const Find = lazy(() => import('./pages/marketing/Find.js'));
 const Privacy = lazy(() => import('./pages/marketing/Privacy.js'));
+const Terms = lazy(() => import('./pages/marketing/Terms.js'));
 const PublicFacility = lazy(() => import('./pages/marketing/PublicFacility.js'));
 const EventMicrosite = lazy(() => import('./pages/marketing/EventMicrosite.js'));
 const NetworkPage = lazy(() => import('./pages/marketing/NetworkPage.js'));
@@ -108,6 +109,7 @@ export function App() {
         <Route path="/features" element={<Features />} />
         <Route path="/find" element={<Find />} />
         <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
         <Route path="/c/:slug" element={<PublicFacility />} />
         <Route path="/e/:slug" element={<EventMicrosite />} />
         <Route path="/n/:slug" element={<NetworkPage />} />

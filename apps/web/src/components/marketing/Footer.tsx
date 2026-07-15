@@ -21,11 +21,12 @@ export function Footer() {
         <FooterCol title="Company" links={[
           { to: '/about', label: 'Our mission' },
           { to: '/privacy', label: 'Privacy' },
+          { to: '/terms', label: 'Terms' },
         ]} />
         <div className="space-y-3">
           <h4 className="text-sm font-semibold">Get in touch</h4>
-          <a href="mailto:hello@sanctum.app" className="block text-sm text-stone-warm hover:text-ink">hello@sanctum.app</a>
-          <a href="mailto:help@sanctum.app" className="block text-sm text-stone-warm hover:text-ink">help@sanctum.app</a>
+          <a href="mailto:hello@sanctum.garden" className="block text-sm text-stone-warm hover:text-ink">hello@sanctum.garden</a>
+          <a href="mailto:help@sanctum.garden" className="block text-sm text-stone-warm hover:text-ink">help@sanctum.garden</a>
         </div>
       </div>
       <div className="border-t border-black/5">

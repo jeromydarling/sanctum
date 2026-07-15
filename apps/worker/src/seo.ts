@@ -36,6 +36,7 @@ const STATIC: Record<string, { title: string; description: string }> = {
   '/pricing': { title: 'Honest pricing, in plain sight · Sanctum', description: 'Simple monthly plans plus a transparent 1.5% per paid booking. Priced for access, not extraction. Your first 30 days are free.' },
   '/about': { title: 'Our mission · Sanctum', description: 'A building that sits empty is a gift waiting to be given. Sanctum helps community spaces open their doors and strengthen their neighborhoods.' },
   '/privacy': { title: 'Privacy commitment · Sanctum', description: 'How Sanctum protects your data and your community’s trust. Export or delete everything you own, anytime.' },
+  '/terms': { title: 'Terms of Service · Sanctum', description: 'The agreement for using Sanctum: accounts, bookings, the transparent 1.5% fee, cancellations, refunds, and deposits.' },
 };
 
 // App/auth routes: real content lives behind auth — keep them out of the index.

@@ -24,10 +24,16 @@ export default function Privacy() {
             <p>From <strong>Settings</strong> you can export everything we hold about you as a single file, and you can delete your account at any time. Deleting your account erases the records you own from our database.</p>
           </Section>
           <Section title="Data sharing">
-            <p>We share data only with the processors that make Sanctum work (such as our hosting and payment providers), and only as much as each needs. We do not sell personal information.</p>
+            <p>We share data only with the processors that make Sanctum work — our hosting and infrastructure provider (Cloudflare), our payment processor (Stripe), and our email delivery — and only as much as each needs to run the service. We do not sell personal information. When you book a space, the relevant details are shared with that Operator (and vice-versa) so the booking can happen.</p>
+          </Section>
+          <Section title="Cookies & analytics">
+            <p>We use a small number of strictly necessary cookies to keep you signed in. For usage measurement we use privacy-first, cookieless analytics that don’t track you across sites or build an advertising profile.</p>
+          </Section>
+          <Section title="Retention">
+            <p>We keep your data for as long as your account is active. When you delete your account we erase the records you own; limited transactional records (for example, payment and tax records) may be retained where the law requires.</p>
           </Section>
           <Section title="Contact">
-            <p>Questions? Email <a className="text-primary hover:underline" href="mailto:help@sanctum.app">help@sanctum.app</a> and a real person will answer.</p>
+            <p>Questions, or want to exercise a data right? Email <a className="text-primary hover:underline" href="mailto:help@sanctum.garden">help@sanctum.garden</a> and a real person will answer. See also our <a className="text-primary hover:underline" href="/terms">Terms of Service</a>.</p>
           </Section>
         </div>
       </article>

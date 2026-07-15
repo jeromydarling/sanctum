@@ -48,8 +48,8 @@ export async function handleSignup(env: Env, req: Request): Promise<Response> {
       'INSERT INTO auth_credentials (user_id, email, password_hash, password_salt) VALUES (?, ?, ?, ?)',
     ).bind(userId, email, hash, salt),
     env.DB.prepare(
-      'INSERT INTO profiles (id, email, full_name, role, organization_name, email_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    ).bind(userId, email, body.full_name || null, role, body.organization_name || null, emailVerified, ts, ts),
+      'INSERT INTO profiles (id, email, full_name, role, organization_name, email_verified, tos_accepted_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    ).bind(userId, email, body.full_name || null, role, body.organization_name || null, emailVerified, ts, ts, ts),
   ]);
 
   // Provision a deterministic starter facility for operators so the dashboard

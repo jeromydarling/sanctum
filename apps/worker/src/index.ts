@@ -20,6 +20,7 @@ import { handleConnectAccount, handleCheckout, handleWebhook, handleSubscribe, h
 import { handleAdminErrors, handleAdminAnnounce, handleAdminMessage } from './routes/admin.js';
 import { handleNetworkInvite, handleInviteInfo, handleNetworkAccept, handleNetworkJoin, handleNetworkLeave } from './routes/networks.js';
 import { handleQboConnect, handleQboCallback, handleQboStatus, handleQboDisconnect, handleQboSync } from './routes/qbo.js';
+import { handleZapierGet, handleZapierSet, handleZapierTest } from './routes/zapier.js';
 import { handleIcalExport, handleSubscribeUrl, handleIcalImport } from './routes/ical.js';
 import { runScheduled } from './scheduled.js';
 import { metaForPath, injectMeta, sitemap, robots, llms } from './seo.js';
@@ -252,6 +253,11 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   if (path === '/api/qbo/status' && method === 'GET') return handleQboStatus(env, url, auth);
   if (path === '/api/qbo/disconnect' && method === 'POST') return handleQboDisconnect(env, req, auth);
   if (path === '/api/qbo/sync' && method === 'POST') return handleQboSync(env, req, auth);
+
+  // QuickBooks-via-Zapier (no Intuit app review): per-facility outbound webhook.
+  if (path === '/api/qbo/zapier' && method === 'GET') return handleZapierGet(env, url, auth);
+  if (path === '/api/qbo/zapier' && method === 'POST') return handleZapierSet(env, req, auth);
+  if (path === '/api/qbo/zapier/test' && method === 'POST') return handleZapierTest(env, req, auth);
 
   return err('Not found', 404);
 }

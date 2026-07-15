@@ -43,7 +43,13 @@ injects the beacon on every page. No cookies, no consent banner required.
 `SENTRY_DSN` secret enables server-side error reporting.
 
 ## QuickBooks (optional)
-`QBO_CLIENT_ID` / `QBO_CLIENT_SECRET` secrets enable the accounting sync.
+Two paths, both live:
+- **Zapier (no setup on our side):** operators paste a Zapier Catch Hook URL in
+  Financials and Sanctum posts every paid booking/invoice to it. Works today on
+  any deployment — nothing to configure here. Customer guide:
+  `docs/QUICKBOOKS_ZAPIER.md`.
+- **Native one-click connect:** set `QBO_CLIENT_ID` / `QBO_CLIENT_SECRET` secrets
+  (requires an approved Intuit production app). Dormant until those are set.
 
 ## Production data
 The public demo listing (**St. Brigid Community Center**, its 5 spaces, and the

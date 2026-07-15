@@ -10,6 +10,7 @@ import { operatesFacility } from '../db.js';
 import { constantTimeEqual } from '../auth.js';
 import { sendEmail, emailLayout } from '../email/index.js';
 import { notify } from './bookings.js';
+import { emitBookingPaid } from './zapier.js';
 
 const STRIPE_API = 'https://api.stripe.com/v1';
 
@@ -96,8 +97,11 @@ export async function handleCheckout(env: Env, req: Request, auth: AuthContext):
   const simulatedAccount = !facility?.stripe_account_id || String(facility.stripe_account_id).startsWith('acct_demo_');
   if (!env.STRIPE_SECRET_KEY || simulatedAccount) {
     // Simulate a successful payment in demo mode.
+    const paidAt = nowISO();
     await env.DB.prepare('UPDATE bookings SET status = ?, balance_paid_at = ?, deposit_status = ?, updated_at = ? WHERE id = ?')
-      .bind('confirmed', nowISO(), depositStatus, nowISO(), booking_id).run();
+      .bind('confirmed', paidAt, depositStatus, nowISO(), booking_id).run();
+    // Push to the operator's Zapier hook (if any) with the fee we just computed.
+    await emitBookingPaid(env, { ...booking, balance_paid_at: paidAt, subtotal_cents: subtotal, platform_fee_cents: fee });
     return json({ demo: true, confirmed: true });
   }
 
@@ -365,6 +369,7 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
               html: emailLayout('Your booking is confirmed', `<p>Payment received. Your event <strong>${booking.event_name}</strong> is confirmed. We can't wait to host you.</p>`),
             });
           }
+          await emitBookingPaid(env, booking);
         }
       }
       break;

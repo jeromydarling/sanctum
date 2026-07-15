@@ -3,6 +3,7 @@ import { platformFeeCents, type InvoiceLineItem } from '@sanctum/shared';
 import type { Env, AuthContext } from '../types.js';
 import { json, err, readJson, genId, nowISO } from '../http.js';
 import { operatesFacility } from '../db.js';
+import { emitInvoicePaid } from './zapier.js';
 
 export async function handleCreateInvoice(
   env: Env,
@@ -68,6 +69,8 @@ export async function handleInvoiceAction(
   await env.DB.prepare('UPDATE invoices SET status = ?, paid_at = ?, updated_at = ? WHERE id = ?')
     .bind(status, paidAt, nowISO(), id)
     .run();
+  // On a paid standalone (tenant) invoice, push to the operator's Zapier hook.
+  if (action === 'paid') await emitInvoicePaid(env, { ...inv, status, paid_at: paidAt });
   return json({ ok: true, invoice: await getInvoice(env, id) });
 }
 

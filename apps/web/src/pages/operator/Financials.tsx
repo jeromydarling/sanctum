@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Download, Printer, FileSpreadsheet, RefreshCw, Link2, Check } from 'lucide-react';
+import { Download, Printer, FileSpreadsheet, RefreshCw, Link2, Check, Zap, Send } from 'lucide-react';
 import { PageHeader } from '../../components/dash/DashShell.js';
-import { Card, CardBody, Stat, Select, Button, EmptyState, Badge } from '../../components/ui.js';
+import { Card, CardBody, Stat, Select, Button, EmptyState, Badge, Input } from '../../components/ui.js';
 import { useStore } from '../../lib/store.js';
 import { useAuth } from '../../lib/auth.js';
 import { facilityForOperator, spaceName, renterName } from '../../lib/selectors.js';
@@ -122,6 +122,7 @@ export default function Financials() {
       </div>
 
       <QuickBooksCard facilityId={facility.id} year={year} txnCount={txns.length} />
+      <ZapierCard facilityId={facility.id} />
 
       <Card className="mt-6"><CardBody>
         <h2 className="font-semibold">Monthly summary — {year}</h2>
@@ -233,7 +234,98 @@ function QuickBooksCard({ facilityId, year, txnCount }: { facilityId: string; ye
         </div>
       </div>
       {status && !status.available && status !== null && !status.connected && (
-        <p className="mt-2 text-xs text-stone-warm">A live sync requires the QuickBooks app to be enabled on this deployment. The CSV exports above work for everyone in the meantime.</p>
+        <p className="mt-2 text-xs text-stone-warm">A live sync requires the QuickBooks app to be enabled on this deployment. The Zapier option below, or the CSV exports above, work for everyone in the meantime.</p>
+      )}
+    </CardBody></Card>
+  );
+}
+
+/**
+ * QuickBooks-via-Zapier: the operator pastes their Zapier "Catch Hook" URL and
+ * Sanctum posts every paid booking/invoice to it, so their Zap can create a
+ * QuickBooks sales receipt automatically. Works on any deployment — no Intuit
+ * app review needed on our side.
+ */
+function ZapierCard({ facilityId }: { facilityId: string }) {
+  const [url, setUrl] = useState('');
+  const [saved, setSaved] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isLive()) return;
+    api<{ url: string }>(`/qbo/zapier?facility_id=${facilityId}`)
+      .then((r) => { setUrl(r.url || ''); setSaved(r.url || ''); })
+      .catch(() => {});
+  }, [facilityId]);
+
+  async function save() {
+    setBusy(true);
+    try {
+      const res = await api<{ url: string }>('/qbo/zapier', { body: { facility_id: facilityId, url } });
+      setSaved(res.url || '');
+      setUrl(res.url || '');
+      toast.success(res.url ? 'Zapier webhook saved' : 'Zapier webhook cleared');
+    } catch (e) { notifyError(e); } finally { setBusy(false); }
+  }
+
+  async function sendTest() {
+    setBusy(true);
+    try {
+      await api('/qbo/zapier/test', { body: { facility_id: facilityId } });
+      toast.success('Test event sent — check your Zap history in Zapier');
+    } catch (e) { notifyError(e); } finally { setBusy(false); }
+  }
+
+  const connected = !!saved;
+
+  return (
+    <Card className="mt-5"><CardBody>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="flex items-center gap-2 font-semibold">
+            <Zap className="h-4 w-4 text-gold" /> Automatic sync via Zapier
+            {connected && <Badge tone="success"><Check className="h-3.5 w-3.5" /> Connected</Badge>}
+          </h2>
+          <p className="mt-1 text-sm text-stone-warm">
+            Send every paid booking and tenant invoice to QuickBooks (or anywhere) automatically —
+            no CSV, no waiting on us. Paste your Zapier webhook URL and we do the rest.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+        <div className="flex-1">
+          <Input
+            label="Zapier webhook URL"
+            hint="From your Zap's first step: Webhooks by Zapier → Catch Hook."
+            placeholder="https://hooks.zapier.com/hooks/catch/..."
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button loading={busy} onClick={save} disabled={url === saved}><Link2 className="h-4 w-4" /> Save</Button>
+          <Button variant="outline" loading={busy} onClick={sendTest} disabled={!connected}><Send className="h-4 w-4" /> Send test</Button>
+        </div>
+      </div>
+
+      <button type="button" onClick={() => setOpen((v) => !v)} className="mt-3 text-sm font-medium text-primary hover:underline">
+        {open ? 'Hide setup guide' : 'How do I set this up? (2 minutes)'}
+      </button>
+      {open && (
+        <div className="mt-3 space-y-3 rounded-lg bg-stone-50 p-4 text-sm text-stone-warm">
+          <ol className="list-decimal space-y-1.5 pl-5">
+            <li>In Zapier, create a new Zap. For the <strong>Trigger</strong>, choose <strong>Webhooks by Zapier</strong> → <strong>Catch Hook</strong>. (This trigger needs a paid Zapier plan.)</li>
+            <li>Zapier shows a <strong>Custom Webhook URL</strong> — copy it, paste it above, and click <strong>Save</strong>, then <strong>Send test</strong> so Zapier can see a sample.</li>
+            <li>For the <strong>Action</strong>, choose <strong>QuickBooks Online</strong> → <strong>Create Sales Receipt</strong> (or Invoice). Connect your QuickBooks account.</li>
+            <li>Map the fields: <code>customer</code> → Customer, <code>description</code> → Description/Memo, <code>amount</code> → Amount, <code>date</code> → Transaction date. Turn the Zap on.</li>
+          </ol>
+          <p className="text-xs">
+            No paid Zapier plan? You can instead forward Sanctum's confirmation emails into Zapier's free
+            <strong> Email Parser</strong> — see the QuickBooks setup guide in our help docs for that route.
+          </p>
+        </div>
       )}
     </CardBody></Card>
   );

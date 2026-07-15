@@ -63,11 +63,13 @@ test.describe('public smoke', () => {
     expect(llm.ok()).toBeTruthy();
     expect(await llm.text()).toContain('](http'); // has links for AI assistants
 
-    // The Worker injects page-specific <head> metadata into the SPA shell.
-    const fac = await request.get('/c/st-brigid-community-center');
-    expect(fac.ok()).toBeTruthy();
-    const html = await fac.text();
-    expect(html).toMatch(/<title>[^<]*St\.?\s*Brigid/i);
+    // Per-route <head> injection on a static marketing route (needs no seed data).
+    // Dynamic per-facility meta is covered in marketplace.spec against a listing
+    // the test creates itself.
+    const pricing = await request.get('/pricing');
+    expect(pricing.ok()).toBeTruthy();
+    const html = await pricing.text();
+    expect(html).toMatch(/<title>[^<]*[Pp]ricing/);
     expect(html).toContain('property="og:title"');
   });
 });

@@ -57,13 +57,13 @@
     "QBO_ENV": "production",
     // Cloudflare Turnstile site key (public). Paste your widget's site key here to
     // enable bot protection; the matching TURNSTILE_SECRET_KEY is a Worker secret.
-    "TURNSTILE_SITE_KEY": "",
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAD2kDLumjOuRCG-c",
     // Google Search Console verification token (public). Paste the content value
     // from the "HTML tag" method here; the Worker injects the meta tag on every page.
-    "GSC_VERIFICATION": "",
+    "GSC_VERIFICATION": "Kgoke5Qc0kB1MKRj3CBZU6XV-JUY-TY-o5mr3PdOO70",
     // Cloudflare Web Analytics beacon token (public, cookieless). Paste the token
     // from the dashboard; the Worker injects the beacon on every page.
-    "CF_ANALYTICS_TOKEN": ""
+    "CF_ANALYTICS_TOKEN": "88b6da1b938245f282eca68cc96062fe"
   },
   // Cloudflare Images — enabled.
   "images": {

@@ -50,8 +50,8 @@ export default function Bookings() {
 
   return (
     <div>
-      <PageHeader title="Bookings" subtitle="Review requests and manage your calendar of events." action={<Button onClick={() => setAddOpen(true)}><Plus className="h-4 w-4" /> Add booking</Button>} />
-      <div className="mb-5 inline-flex rounded-card border border-black/10 bg-white p-1">
+      <PageHeader title="Bookings" subtitle="Review requests and manage your calendar of events." action={<Button data-tour="op-bookings-add" onClick={() => setAddOpen(true)}><Plus className="h-4 w-4" /> Add booking</Button>} />
+      <div className="mb-5 inline-flex rounded-card border border-black/10 bg-white p-1" data-tour="op-bookings-tabs">
         {(['pending', 'upcoming', 'past'] as Tab[]).map((t) => (
           <button key={t} onClick={() => setTab(t)} className={cn('rounded-[6px] px-4 py-1.5 text-sm font-medium capitalize transition', tab === t ? 'bg-primary text-white' : 'text-ink/70 hover:bg-black/[0.03]')}>
             {t} {buckets[t].length > 0 && <span className="ml-1 opacity-70">{buckets[t].length}</span>}
@@ -59,6 +59,7 @@ export default function Bookings() {
         ))}
       </div>
 
+      <div data-tour="op-bookings-list">
       {list.length === 0 ? (
         <EmptyState icon={<Inbox className="h-8 w-8" />} title={`No ${tab} bookings`} body={tab === 'pending' ? 'New requests will show up here for your review.' : 'Nothing here yet.'} />
       ) : (
@@ -88,6 +89,7 @@ export default function Bookings() {
           ))}
         </div>
       )}
+      </div>
 
       {addOpen && facility && <ManualBookingModal facilityId={facility.id} operatorId={user!.id} spaces={data.spaces.filter((s) => s.facility_id === facility.id)} onClose={() => setAddOpen(false)} />}
 

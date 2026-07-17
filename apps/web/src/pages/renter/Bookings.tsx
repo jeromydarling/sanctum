@@ -15,6 +15,7 @@ export default function Bookings() {
   return (
     <div>
       <PageHeader title="My bookings" subtitle="Your requests, upcoming events, and past gatherings." action={<Button asLink="/renter">Find a space</Button>} />
+      <div data-tour="renter-bookings-list">
       {bookings.length === 0 ? (
         <EmptyState icon={<CalendarCheck className="h-8 w-8" />} title="No bookings yet" body="Find a welcoming space and send your first request." action={<Button asLink="/renter">Browse spaces</Button>} />
       ) : (
@@ -41,6 +42,7 @@ export default function Bookings() {
           })}
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -109,20 +109,20 @@ export default function Financials() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-3" data-tour="fin-stats">
         <Stat label={`Gross revenue ${year}`} value={formatCents(gross)} sub={`${txns.length} transactions`} tone="primary" />
         <Stat label="Platform fees (1.5%)" value={formatCents(fees)} tone="gold" />
         <Stat label="Net to your community" value={formatCents(net)} tone="success" />
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="mt-5 flex flex-wrap gap-2" data-tour="fin-export">
         <Button onClick={exportTransactions}><FileSpreadsheet className="h-4 w-4" /> Transactions CSV</Button>
         <Button variant="outline" onClick={exportStatement}><Download className="h-4 w-4" /> Year-end statement (CSV)</Button>
         <Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" /> Print statement</Button>
       </div>
 
-      <QuickBooksCard facilityId={facility.id} year={year} txnCount={txns.length} />
-      <ZapierCard facilityId={facility.id} />
+      <div data-tour="fin-qbo"><QuickBooksCard facilityId={facility.id} year={year} txnCount={txns.length} /></div>
+      <div data-tour="fin-zapier"><ZapierCard facilityId={facility.id} /></div>
 
       <Card className="mt-6"><CardBody>
         <h2 className="font-semibold">Monthly summary — {year}</h2>

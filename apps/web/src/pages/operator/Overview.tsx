@@ -74,7 +74,7 @@ export default function Overview() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-tour="op-stats">
         <Stat label="Revenue (all time)" value={formatCents(revenue)} sub={`${thisMonth.length} confirmed this month`} tone="success" />
         <Stat label="Pending requests" value={pending.length} sub="awaiting your review" tone="gold" />
         <Stat label="Upcoming events" value={upcoming.length} sub="approved & confirmed" />
@@ -84,7 +84,7 @@ export default function Overview() {
       <ImpactCard facility={facility} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2" data-tour="op-pending">
           <Card>
             <div className="flex items-center justify-between border-b border-black/5 px-5 py-4">
               <h2 className="font-semibold">Pending requests</h2>

@@ -33,7 +33,7 @@ export default function Find() {
   return (
     <div>
       <PageHeader title="Find a space" subtitle="Discover welcoming community spaces for your next gathering." />
-      <Card className="mb-6 p-3 sm:flex sm:items-end sm:gap-3">
+      <Card className="mb-6 p-3 sm:flex sm:items-end sm:gap-3" data-tour="find-search">
         <div className="flex-1"><Input label="City" placeholder="Minneapolis" value={city} onChange={(e) => setCity(e.target.value)} /></div>
         <div className="mt-3 sm:mt-0 sm:w-48">
           <Select label="Space type" value={type} onChange={(e) => setType(e.target.value)}>
@@ -44,6 +44,7 @@ export default function Find() {
         <Button className="mt-3 sm:mt-0" onClick={load}><Search className="h-4 w-4" /> Search</Button>
       </Card>
 
+      <div data-tour="find-results">
       {loading ? (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-64" />)}</div>
       ) : !facilities?.length ? (
@@ -69,6 +70,7 @@ export default function Find() {
           )))}
         </div>
       )}
+      </div>
     </div>
   );
 }

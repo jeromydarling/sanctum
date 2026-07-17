@@ -39,14 +39,15 @@ export default function Tenants() {
       <PageHeader
         title="Tenants & recurring"
         subtitle="The groups who make your spaces a second home — held on your calendar and invoiced each month, so you can focus on the relationship."
-        action={<Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Add tenant</Button>}
+        action={<Button data-tour="op-tenants-add" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Add tenant</Button>}
       />
-      <div className="mb-5 grid gap-4 sm:grid-cols-3">
+      <div className="mb-5 grid gap-4 sm:grid-cols-3" data-tour="op-tenants-stats">
         <Stat label="From tenants each month" value={formatCents(monthlyRecurring)} sub="invoiced automatically" tone="success" />
         <Stat label="Active tenants" value={leases.filter((l) => l.status === 'active').length} tone="primary" />
         <Stat label="Reminders" value={dueFollowUps} sub="people to check in with" tone={dueFollowUps ? 'gold' : 'neutral'} />
       </div>
 
+      <div data-tour="op-tenants-list">
       {leases.length === 0 ? (
         <EmptyState icon={<Repeat className="h-8 w-8" />} title="No recurring tenants yet" body="Add a weekly group, a class, or a long-term tenant — Sanctum holds the time on your calendar and invoices them every month." action={<Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Add a tenant</Button>} />
       ) : (
@@ -87,6 +88,7 @@ export default function Tenants() {
           })}
         </div>
       )}
+      </div>
 
       {(creating || editing) && (
         <LeaseEditor facilityId={facility.id} spaces={data.spaces.filter((s) => s.facility_id === facility.id)} lease={editing} onClose={() => { setCreating(false); setEditing(null); }} />

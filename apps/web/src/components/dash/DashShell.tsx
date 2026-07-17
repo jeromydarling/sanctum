@@ -9,6 +9,7 @@ import { isDemo } from '../../lib/config.js';
 import { useStore } from '../../lib/store.js';
 import { initials } from '../../lib/format.js';
 import { DemoTour } from './DemoTour.js';
+import { TourProvider, TourButton } from '../tour/Tour.js';
 
 export interface NavItem {
   to: string;
@@ -29,6 +30,7 @@ export function DashShell({ nav, title }: { nav: NavItem[]; title: string }) {
   }
 
   return (
+    <TourProvider>
     <div className="min-h-screen bg-cream lg:flex">
       {/* Sidebar */}
       <aside className={cn('fixed inset-y-0 left-0 z-40 w-64 transform border-r border-black/5 bg-white transition-transform lg:static lg:translate-x-0', open ? 'translate-x-0' : '-translate-x-full')}>
@@ -37,7 +39,7 @@ export function DashShell({ nav, title }: { nav: NavItem[]; title: string }) {
           <button className="lg:hidden" aria-label="Close menu" onClick={() => setOpen(false)}><X className="h-5 w-5" /></button>
         </div>
         <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-stone-warm">{title}</div>
-        <nav className="space-y-0.5 px-3">
+        <nav className="space-y-0.5 px-3" data-tour="dash-nav">
           {nav.map((item) => (
             <NavLink
               key={item.to}
@@ -65,6 +67,7 @@ export function DashShell({ nav, title }: { nav: NavItem[]; title: string }) {
           <button className="lg:hidden" aria-label="Open menu" onClick={() => setOpen(true)}><Menu className="h-5 w-5" /></button>
           <div className="flex flex-1 items-center justify-end gap-3">
             {isDemo() && <Badge tone="gold"><span className="hidden sm:inline">Demo sandbox — </span>nothing is saved</Badge>}
+            <TourButton />
             <NotificationButton count={unread} />
             <div className="flex items-center gap-2">
               <span className="grid h-9 w-9 place-items-center rounded-full bg-primary text-sm font-semibold text-white">{initials(user?.full_name)}</span>
@@ -81,6 +84,7 @@ export function DashShell({ nav, title }: { nav: NavItem[]; title: string }) {
         <DemoTour />
       </div>
     </div>
+    </TourProvider>
   );
 }
 

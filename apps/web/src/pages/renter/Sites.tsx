@@ -19,7 +19,8 @@ export default function Sites() {
 
   return (
     <div>
-      <PageHeader title="Event pages" subtitle="Build a beautiful public page for your event — with an AI website builder." action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> New event page</Button>} />
+      <PageHeader title="Event pages" subtitle="Build a beautiful public page for your event — with an AI website builder." action={<Button data-tour="sites-new" onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> New event page</Button>} />
+      <div data-tour="sites-list">
       {sites.length === 0 ? (
         <EmptyState icon={<Globe className="h-8 w-8" />} title="No event pages yet" body="Create a shareable page for your event in seconds — invite guests, share the details, collect RSVPs." action={<Button onClick={() => setOpen(true)}><Sparkles className="h-4 w-4" /> Build one with AI</Button>} />
       ) : (
@@ -39,6 +40,7 @@ export default function Sites() {
           ))}
         </div>
       )}
+      </div>
       {open && <NewSiteModal renterId={user!.id} bookings={myBookings} dataFacilityName={(id) => facilityName(data, id)} dataSpaceName={(id) => spaceName(data, id)} existingSlugs={data.event_microsites.map((s) => s.slug)} onClose={() => setOpen(false)} />}
     </div>
   );

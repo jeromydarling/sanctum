@@ -32,8 +32,9 @@ export default function Spaces() {
 
   return (
     <div>
-      <PageHeader title="Spaces & Resources" subtitle="The rooms you offer and the extras renters can add." action={<Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Add space</Button>} />
+      <PageHeader title="Spaces & Resources" subtitle="The rooms you offer and the extras renters can add." action={<Button data-tour="op-spaces-add" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Add space</Button>} />
 
+      <div data-tour="op-spaces-list">
       {spaces.length === 0 ? (
         <EmptyState icon={<Building2 className="h-8 w-8" />} title="No spaces yet" body="Add your first space to start welcoming the community." action={<Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Add a space</Button>} />
       ) : (
@@ -58,6 +59,7 @@ export default function Spaces() {
           ))}
         </div>
       )}
+      </div>
 
       <ResourcesSection facilityId={facility.id} resources={resources} />
 

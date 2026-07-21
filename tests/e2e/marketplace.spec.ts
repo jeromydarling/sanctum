@@ -158,6 +158,11 @@ test.describe('marketplace: list → discover → book → pay → confirmed', (
     expect(res.ok(), `announce POST returned HTTP ${res.status()}`).toBeTruthy();
     expect((await res.json()).recipients, 'announcement should have at least one recipient').toBeGreaterThan(0);
 
+    // Fan-out is queued (drained by a 1-minute cron); flush it now so the test
+    // is deterministic instead of waiting on the cron.
+    const drain = await rtPage.request.post(`/api/admin/test/drain-announcements?token=${encodeURIComponent(PURGE_TOKEN)}`);
+    expect(drain.ok(), `drain returned HTTP ${drain.status()}`).toBeTruthy();
+
     await expect(async () => {
       const log = await rtPage.request.get(
         `/api/admin/test/emails?token=${encodeURIComponent(PURGE_TOKEN)}&to=${encodeURIComponent(rtEmail)}`,

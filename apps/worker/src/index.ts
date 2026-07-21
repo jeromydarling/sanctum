@@ -21,7 +21,7 @@ import { handleAdminErrors, handleAdminAnnounce, handleAdminMessage } from './ro
 import { handleNetworkInvite, handleInviteInfo, handleNetworkAccept, handleNetworkJoin, handleNetworkLeave } from './routes/networks.js';
 import { handleQboConnect, handleQboCallback, handleQboStatus, handleQboDisconnect, handleQboSync } from './routes/qbo.js';
 import { handleZapierGet, handleZapierSet, handleZapierTest } from './routes/zapier.js';
-import { handleAnnounce, handleAnnouncementHistory } from './routes/announce.js';
+import { handleAnnounce, handleAnnouncementHistory, handleDrainAnnouncements, drainAnnouncementQueue } from './routes/announce.js';
 import { handleIcalExport, handleSubscribeUrl, handleIcalImport } from './routes/ical.js';
 import { runScheduled } from './scheduled.js';
 import { metaForPath, injectMeta, sitemap, robots, llms } from './seo.js';
@@ -87,8 +87,11 @@ const handler = {
     }
   },
 
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runScheduled(env));
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    // The every-minute trigger only drains the announcement queue; the daily
+    // trigger runs the heavy sweeps (and also drains, as a backstop).
+    if (event.cron === '* * * * *') ctx.waitUntil(drainAnnouncementQueue(env));
+    else ctx.waitUntil(runScheduled(env));
   },
 } satisfies ExportedHandler<Env>;
 
@@ -161,6 +164,8 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   // Sentry heartbeat — token-guarded; deliberately throws so we can prove error
   // reporting is wired end-to-end.
   if (path === '/api/admin/test/sentry' && method === 'GET') return handleTestSentry(env, url);
+  // Token-guarded manual flush of the announcement queue (E2E + ops).
+  if (path === '/api/admin/test/drain-announcements' && method === 'POST') return handleDrainAnnouncements(env, url);
   if (path === '/api/public/discover' && method === 'GET') return handleDiscover(env, url);
   if (path === '/api/public/inquiry' && method === 'POST') return handleInquiry(env, req);
   if (seg[0] === 'public' && seg[1] === 'facility' && seg[2] && method === 'GET') {

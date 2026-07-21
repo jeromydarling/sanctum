@@ -47,7 +47,8 @@
   ],
   "triggers": {
     // Daily at 08:00 UTC: insurance/COI expiry sweep + monthly auto-invoicing (idempotent).
-    "crons": ["0 8 * * *"]
+    // Every minute: drain the announcement delivery queue (fan-out off the request path).
+    "crons": ["0 8 * * *", "* * * * *"]
   },
   "vars": {
     "PLATFORM_FEE_PERCENT": "1.5",

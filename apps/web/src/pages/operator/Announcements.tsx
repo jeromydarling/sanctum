@@ -72,7 +72,7 @@ export default function Announcements() {
       const res = await api<{ recipients: number }>('/operator/announce', {
         body: { facility_id: facility.id, title: title.trim(), body: body.trim(), audience },
       });
-      toast.success(`Sent to ${res.recipients} ${res.recipients === 1 ? 'person' : 'people'}`);
+      toast.success(`Sending to ${res.recipients} ${res.recipients === 1 ? 'person' : 'people'} — they'll get it shortly`);
       setTitle(''); setBody('');
       const r = await api<{ announcements: Sent[] }>(`/operator/announcements?facility_id=${facility.id}`);
       setHistory(r.announcements || []);

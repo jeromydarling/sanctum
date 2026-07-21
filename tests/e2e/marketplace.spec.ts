@@ -148,7 +148,11 @@ test.describe('marketplace: list → discover → book → pay → confirmed', (
     // The renter now has an upcoming confirmed booking, so a "renters" announcement
     // should reach them — verify it lands as an email addressed to the renter.
     const subject = `E2E Announce ${runId}`;
+    // Authenticated API: the app sends a Bearer token from localStorage, which
+    // page.request doesn't add automatically — pass it explicitly.
+    const opToken = await opPage.evaluate(() => localStorage.getItem('sanctum.token'));
     const res = await opPage.request.post('/api/operator/announce', {
+      headers: { Authorization: `Bearer ${opToken}` },
       data: { facility_id: facilityId, title: subject, body: 'The hall will be closed Saturday for cleaning.', audience: 'renters' },
     });
     expect(res.ok(), `announce POST returned HTTP ${res.status()}`).toBeTruthy();

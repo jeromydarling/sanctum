@@ -4,6 +4,7 @@ import type { Env, AuthContext } from '../types.js';
 import { json, err, readJson, genId, nowISO } from '../http.js';
 import { operatesFacility } from '../db.js';
 import { emitInvoicePaid } from './zapier.js';
+import { invoiceRecipient, emailInvoiceIssued } from '../email/events.js';
 
 export async function handleCreateInvoice(
   env: Env,
@@ -71,6 +72,11 @@ export async function handleInvoiceAction(
     .run();
   // On a paid standalone (tenant) invoice, push to the operator's Zapier hook.
   if (action === 'paid') await emitInvoicePaid(env, { ...inv, status, paid_at: paidAt });
+  // On send, email the recipient so they actually know an invoice is waiting.
+  if (action === 'send') {
+    const to = await invoiceRecipient(env, inv);
+    if (to) await emailInvoiceIssued(env, to.email, to.name, inv);
+  }
   return json({ ok: true, invoice: await getInvoice(env, id) });
 }
 

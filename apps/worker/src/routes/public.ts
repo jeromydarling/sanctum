@@ -8,6 +8,7 @@ import { json, err, readJson, genId, nowISO } from '../http.js';
 import { decodeRow } from '../db.js';
 import { TABLES } from '../schema.js';
 import { turnstileOk } from '../turnstile.js';
+import { profileContact, emailInquiryToOperator } from '../email/events.js';
 
 /** GET /api/public/discover?city=&state=&type=&capacity= */
 export async function handleDiscover(env: Env, url: URL): Promise<Response> {
@@ -125,6 +126,13 @@ export async function handleInquiry(env: Env, req: Request): Promise<Response> {
     `INSERT INTO notifications (id, user_id, title, body, type, is_read, action_url, created_at, updated_at)
      VALUES (?, ?, 'New inquiry', ?, 'lead', 0, '/operator/leads', ?, ?)`,
   ).bind(genId('ntf'), facility.operator_id, `${b.name} asked about your spaces.`, ts, ts).run();
+
+  // Email the operator too — a hot lead shouldn't wait for them to log in.
+  const op = await profileContact(env, facility.operator_id);
+  if (op) {
+    await emailInquiryToOperator(env, op.email, op.name,
+      { name: b.name!.trim(), email: b.email, organization: b.organization, message: b.message!.trim() }, facility.name);
+  }
 
   return json({ ok: true });
 }

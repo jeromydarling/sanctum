@@ -15,6 +15,7 @@ import { operatesFacility } from '../db.js';
 import { insertBookingViaLock } from '../booking-lock.js';
 import { refundBooking } from '../stripe-client.js';
 import { sendEmail, emailLayout } from '../email/index.js';
+import { profileContact } from '../email/events.js';
 
 interface CreateBookingBody {
   facility_id?: string;
@@ -263,6 +264,7 @@ export async function handleBookingStatus(
   // held deposit — reversing the transfer and returning Sanctum's platform fee
   // (priced for access, not extraction). Best-effort; simulated without Stripe.
   let depositStatusAfter = booking.deposit_status as string | null;
+  let refundedRenter = false;
   if (action === 'cancel' && booking.balance_paid_at) {
     const held = booking.deposit_status === 'held' ? Number(booking.deposit_cents || 0) : 0;
     const amount = Number(booking.subtotal_cents || 0) + held;
@@ -270,6 +272,7 @@ export async function handleBookingStatus(
       const res = await refundBooking(env, booking, { amountCents: amount, reverseTransfer: true, refundApplicationFee: true });
       if (res.error) return err(`Refund failed: ${res.error}`, 502);
       if (held > 0) depositStatusAfter = 'returned';
+      refundedRenter = true;
     }
   }
 
@@ -329,13 +332,31 @@ export async function handleBookingStatus(
       });
     }
   } else if (action === 'cancel') {
-    // Let the other party know about a cancellation.
+    // Tell the renter it's cancelled (and that a refund is coming, if paid).
     if (renter?.email) {
       await sendEmail(env, {
         to: renter.email,
         subject: `Booking cancelled: ${booking.event_name}`,
-        html: emailLayout('Your booking was cancelled', `<p>Your booking for <strong>${escapeHtml(String(booking.event_name))}</strong> on ${formatDate(booking.start_time as string)} has been cancelled.${body.reason ? ` Reason: ${escapeHtml(body.reason)}` : ''}</p>`),
+        html: emailLayout('Your booking was cancelled', `<p>Your booking for <strong>${escapeHtml(String(booking.event_name))}</strong> on ${formatDate(booking.start_time as string)} has been cancelled.${body.reason ? ` Reason: ${escapeHtml(body.reason)}` : ''}</p>${refundedRenter ? '<p>A full refund is on its way — it may take a few business days to reach your account.</p>' : ''}`),
       });
+    }
+    // Make sure the *other* party hears about it too (cancellations were one-sided).
+    const fac = await env.DB.prepare('SELECT operator_id, name FROM facilities WHERE id = ?')
+      .bind(booking.facility_id).first<{ operator_id: string; name: string }>();
+    if (fac) {
+      await notify(env, fac.operator_id, {
+        title: 'Booking cancelled',
+        body: `${booking.event_name} was cancelled${refundedRenter ? ' and the renter was refunded' : ''}.`,
+        action_url: `/operator/bookings/${bookingId}`,
+      });
+      const op = await profileContact(env, fac.operator_id);
+      if (op) {
+        await sendEmail(env, {
+          to: op.email,
+          subject: `Booking cancelled: ${booking.event_name}`,
+          html: emailLayout('A booking was cancelled', `<p><strong>${escapeHtml(String(booking.event_name))}</strong> on ${formatDate(booking.start_time as string)} has been cancelled${body.reason ? ` — reason: ${escapeHtml(body.reason)}` : ''}. The time is open again on your calendar.${refundedRenter ? ' The renter has been refunded in full.' : ''}</p>`),
+        });
+      }
     }
   }
 

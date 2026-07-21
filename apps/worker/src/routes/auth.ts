@@ -5,6 +5,7 @@ import { json, err, readJson, genId, nowISO } from '../http.js';
 import { hashPassword, verifyPassword, issueToken } from '../auth.js';
 import { sendEmail, emailLayout } from '../email/index.js';
 import { turnstileOk } from '../turnstile.js';
+import { emailPasswordChanged } from '../email/events.js';
 
 interface SignupBody {
   email?: string;
@@ -188,6 +189,10 @@ export async function handleResetPassword(env: Env, req: Request): Promise<Respo
       .bind(hash, salt, row.user_id),
     env.DB.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(row.user_id),
   ]);
+  // Security confirmation — so a change the user didn't make doesn't go unseen.
+  const cred = await env.DB.prepare('SELECT email FROM auth_credentials WHERE user_id = ?')
+    .bind(row.user_id).first<{ email: string }>();
+  if (cred?.email) await emailPasswordChanged(env, cred.email);
   return json({ ok: true });
 }
 

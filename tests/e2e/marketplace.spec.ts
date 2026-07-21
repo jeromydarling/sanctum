@@ -85,6 +85,28 @@ test.describe('marketplace: list → discover → book → pay → confirmed', (
     expect(html).toContain(orgName);
   });
 
+  test('a public inquiry emails the operator', async () => {
+    // Fire a lead at the operator's facility, then assert the notification email
+    // reached the outbound pipeline (email_log), addressed to the operator.
+    const inqEmail = uniqueEmail('inq');
+    const res = await rtPage.request.post('/api/public/inquiry', {
+      data: { facility_id: facilityId, name: 'E2E Inquirer', email: inqEmail, message: 'Is this space available next month?' },
+    });
+    expect(res.ok(), `inquiry POST returned HTTP ${res.status()}`).toBeTruthy();
+
+    await expect(async () => {
+      const log = await rtPage.request.get(
+        `/api/admin/test/emails?token=${encodeURIComponent(PURGE_TOKEN)}&to=${encodeURIComponent(opEmail)}`,
+      );
+      expect(log.ok()).toBeTruthy();
+      const body = await log.json();
+      expect(
+        (body.emails || []).some((e: { subject: string }) => /inquiry/i.test(e.subject)),
+        `expected an inquiry email to the operator; got ${JSON.stringify(body.emails)}`,
+      ).toBeTruthy();
+    }).toPass({ timeout: 15_000 });
+  });
+
   test('a renter discovers, books, and pays — booking is confirmed', async () => {
     await signUp(rtPage, { email: rtEmail, password: PASSWORD, name: 'E2E MktRenter', org: '', role: 'renter' });
     await expect(rtPage).toHaveURL(/\/renter$/);

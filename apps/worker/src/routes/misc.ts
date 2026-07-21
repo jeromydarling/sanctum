@@ -1,6 +1,7 @@
 /** Telemetry sink + GDPR account export/delete. */
 import type { Env, AuthContext } from '../types.js';
 import { json, err, readJson, genId, nowISO } from '../http.js';
+import { emailAccountDeleted } from '../email/events.js';
 
 export async function handleTelemetry(env: Env, req: Request): Promise<Response> {
   const b = await readJson<{ message?: string; stack?: string; url?: string; user_id?: string }>(req);
@@ -91,6 +92,8 @@ export async function eraseUser(env: Env, userId: string): Promise<void> {
 }
 
 export async function handleDeleteAccount(env: Env, auth: AuthContext): Promise<Response> {
+  // Confirm before we erase — afterwards there's no address left to reach.
+  if (auth.email) await emailAccountDeleted(env, auth.email);
   await eraseUser(env, auth.id);
   return json({ ok: true });
 }

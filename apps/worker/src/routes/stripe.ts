@@ -9,6 +9,10 @@ import { json, err, readJson, nowISO, genId } from '../http.js';
 import { operatesFacility } from '../db.js';
 import { constantTimeEqual } from '../auth.js';
 import { sendEmail, emailLayout } from '../email/index.js';
+import {
+  profileContact, emailPaymentFailed, emailBookingRefunded, emailOperatorBookingPaid,
+  emailDispute, emailPayoutFailed, emailOnboardingComplete, emailTrialEnding, emailSubscriptionPaymentFailed,
+} from '../email/events.js';
 import { notify } from './bookings.js';
 import { emitBookingPaid } from './zapier.js';
 
@@ -328,8 +332,15 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
     case 'account.updated': {
       const acctId = obj.id as string;
       const onboarded = obj.charges_enabled ? 1 : 0;
+      const prior = await env.DB.prepare('SELECT operator_id, name, stripe_onboarded FROM facilities WHERE stripe_account_id = ?')
+        .bind(acctId).first<{ operator_id: string; name: string; stripe_onboarded: number }>();
       await env.DB.prepare('UPDATE facilities SET stripe_onboarded = ?, updated_at = ? WHERE stripe_account_id = ?')
         .bind(onboarded, nowISO(), acctId).run();
+      // First time payments switch on — congratulate the operator.
+      if (onboarded && prior && !prior.stripe_onboarded) {
+        const op = await profileContact(env, prior.operator_id);
+        if (op) await emailOnboardingComplete(env, op.email, op.name, prior.name);
+      }
       break;
     }
     case 'checkout.session.completed': {
@@ -360,6 +371,8 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
               body: `${booking.event_name} is paid and confirmed.`,
               action_url: `/operator/bookings/${bookingId}`,
             });
+            const op = await profileContact(env, facility.operator_id);
+            if (op) await emailOperatorBookingPaid(env, op.email, op.name, String(booking.event_name), bookingId);
           }
           const renter = await env.DB.prepare('SELECT email FROM profiles WHERE id = ?').bind(booking.renter_id).first<{ email: string }>();
           if (renter?.email) {
@@ -390,10 +403,27 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
       }
       break;
     }
+    case 'customer.subscription.trial_will_end': {
+      const customer = (obj.customer as string) || '';
+      if (customer) {
+        const fac = await env.DB.prepare('SELECT operator_id FROM facilities WHERE stripe_customer_id = ?').bind(customer).first<{ operator_id: string }>();
+        if (fac) { const op = await profileContact(env, fac.operator_id); if (op) await emailTrialEnding(env, op.email, op.name); }
+      }
+      break;
+    }
+    case 'invoice.payment_failed': {
+      // A failed charge on the operator's own Sanctum subscription (dunning).
+      const customer = (obj.customer as string) || '';
+      if (customer) {
+        const fac = await env.DB.prepare('SELECT operator_id FROM facilities WHERE stripe_customer_id = ?').bind(customer).first<{ operator_id: string }>();
+        if (fac) { const op = await profileContact(env, fac.operator_id); if (op) await emailSubscriptionPaymentFailed(env, op.email, op.name); }
+      }
+      break;
+    }
     case 'payment_intent.payment_failed': {
       const bookingId = (obj.metadata as Record<string, string>)?.booking_id || '';
       if (bookingId) {
-        const booking = await env.DB.prepare('SELECT facility_id, event_name FROM bookings WHERE id = ?').bind(bookingId).first<{ facility_id: string; event_name: string }>();
+        const booking = await env.DB.prepare('SELECT facility_id, renter_id, event_name FROM bookings WHERE id = ?').bind(bookingId).first<{ facility_id: string; renter_id: string; event_name: string }>();
         if (booking) {
           const facility = await env.DB.prepare('SELECT operator_id FROM facilities WHERE id = ?').bind(booking.facility_id).first<{ operator_id: string }>();
           if (facility) {
@@ -403,6 +433,9 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
               action_url: `/operator/bookings/${bookingId}`,
             });
           }
+          // Nudge the renter to retry so the date isn't quietly lost.
+          const renter = await profileContact(env, booking.renter_id);
+          if (renter) await emailPaymentFailed(env, renter.email, renter.name, booking.event_name, bookingId);
         }
       }
       break;
@@ -413,19 +446,23 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
       const amountRefunded = Number(obj.amount_refunded || 0);
       const amount = Number(obj.amount || 0);
       if (pi) {
-        const booking = await env.DB.prepare('SELECT id, facility_id, event_name FROM bookings WHERE stripe_payment_intent_id = ?').bind(pi).first<{ id: string; facility_id: string; event_name: string }>();
+        const booking = await env.DB.prepare('SELECT id, facility_id, renter_id, event_name FROM bookings WHERE stripe_payment_intent_id = ?').bind(pi).first<{ id: string; facility_id: string; renter_id: string; event_name: string }>();
         if (booking) {
-          const refundStatus = amountRefunded >= amount ? 'refunded' : 'partially_refunded';
+          const full = amountRefunded >= amount;
+          const refundStatus = full ? 'refunded' : 'partially_refunded';
           await env.DB.prepare('UPDATE bookings SET status = ?, updated_at = ? WHERE id = ?')
             .bind(refundStatus, nowISO(), booking.id).run();
           const facility = await env.DB.prepare('SELECT operator_id FROM facilities WHERE id = ?').bind(booking.facility_id).first<{ operator_id: string }>();
           if (facility) {
             await notify(env, facility.operator_id, {
-              title: refundStatus === 'refunded' ? 'Booking refunded' : 'Booking partially refunded',
+              title: full ? 'Booking refunded' : 'Booking partially refunded',
               body: `${booking.event_name} was ${refundStatus.replace('_', ' ')}.`,
               action_url: `/operator/bookings/${booking.id}`,
             });
           }
+          // Tell the person who got the money back.
+          const renter = await profileContact(env, booking.renter_id);
+          if (renter) await emailBookingRefunded(env, renter.email, renter.name, booking.event_name, full);
         }
       }
       break;
@@ -461,6 +498,8 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
               body: `Stripe dispute on ${booking.event_name}. As the connected account you are liable — respond in your Stripe dashboard.`,
               action_url: `/operator/bookings/${booking.id}`,
             });
+            const op = await profileContact(env, facility.operator_id);
+            if (op) await emailDispute(env, op.email, op.name, booking.event_name, event.type === 'charge.dispute.closed', disputeStatus);
           }
         }
       }
@@ -477,6 +516,8 @@ export async function handleWebhook(env: Env, req: Request): Promise<Response> {
             body: `A Stripe payout to ${facility.name} failed. Check your bank details in Stripe Express.`,
             action_url: `/operator/settings/stripe`,
           });
+          const op = await profileContact(env, facility.operator_id);
+          if (op) await emailPayoutFailed(env, op.email, op.name, facility.name);
         }
       }
       break;

@@ -16,7 +16,14 @@ Until these are set, the whole payment flow runs in **simulated** mode.
 Then in the Stripe dashboard add a webhook to `https://sanctum.garden/api/stripe/webhooks`
 subscribing to: `account.updated`, `checkout.session.completed`,
 `customer.subscription.updated`, `customer.subscription.deleted`,
-`payment_intent.payment_failed`, `charge.dispute.created`, `charge.dispute.closed`.
+`customer.subscription.trial_will_end`, `invoice.payment_failed`,
+`payment_intent.payment_failed`, `charge.refunded`, `charge.dispute.created`,
+`charge.dispute.updated`, `charge.dispute.closed`, `payout.failed`.
+
+Each event drives a notification/email: refunds → renter refund email, failed
+subscription charge / trial ending → operator dunning emails, `account.updated`
+→ the "you can accept payments" email when onboarding completes, `payout.failed`
+→ operator alert. Missing an event just means its email won't fire — nothing breaks.
 
 ## Email (Cloudflare Email Service)
 The `EMAIL` binding is already declared. Verify the sending domain / route for

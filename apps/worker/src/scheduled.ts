@@ -3,6 +3,7 @@ import { platformFeeCents, leaseMonthlyAmountCents, type Lease } from '@sanctum/
 import type { Env } from './types.js';
 import { genId, nowISO } from './http.js';
 import { sendEmail, emailLayout } from './email/index.js';
+import { profileContact, invoiceRecipient, emailInvoiceIssued, emailInvoiceReminder } from './email/events.js';
 import { syncFacilityCalendar } from './routes/ical.js';
 import { pruneRateLimits } from './rate-limit.js';
 
@@ -12,6 +13,7 @@ export async function runScheduled(env: Env): Promise<void> {
   await reviewRequests(env);
   await syncExternalCalendars(env);
   await monthlyAutoInvoicing(env);
+  await invoiceReminders(env);
   await pruneRateLimits(env);
 }
 
@@ -167,6 +169,8 @@ async function monthlyAutoInvoicing(env: Env): Promise<void> {
           subtotal_cents, tax_cents, total_cents, platform_fee_cents, status, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 'sent', ?, ?)`,
       ).bind(id, f.id, b.id, b.renter_id, number, JSON.stringify(items), subtotal, subtotal, fee, ts, ts).run();
+      const to = await profileContact(env, b.renter_id as string);
+      if (to) await emailInvoiceIssued(env, to.email, to.name, { invoice_number: number, total_cents: subtotal, due_date: null, renter_id: b.renter_id });
     }
 
     // Recurring tenants/leases: one invoice per active lease for the prior month.
@@ -192,7 +196,34 @@ async function monthlyAutoInvoicing(env: Env): Promise<void> {
           subtotal_cents, tax_cents, total_cents, platform_fee_cents, status, created_at, updated_at)
          VALUES (?, ?, NULL, ?, ?, ?, ?, 0, ?, ?, 'sent', ?, ?)`,
       ).bind(id, f.id, lease.renter_id || '', number, JSON.stringify(items), amount, amount, fee, ts, ts).run();
+      // Email the tenant — via their account if they have one, else the tenant
+      // email on the lease (recurring tenants often aren't Sanctum users).
+      const acct = lease.renter_id ? await profileContact(env, lease.renter_id) : null;
+      const tenantEmail = acct?.email || (lr.tenant_email as string | null) || null;
+      if (tenantEmail) await emailInvoiceIssued(env, tenantEmail, acct?.name || (lr.tenant_name as string | null) || null, { invoice_number: number, total_cents: amount, due_date: null, renter_id: lease.renter_id || '' });
     }
+  }
+}
+
+/** Nudge on invoices that have passed their due date and are still open.
+ *  Marks them overdue and emails once (idempotent via reminder_log). */
+async function invoiceReminders(env: Env): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  const invoices = (
+    await env.DB.prepare(
+      `SELECT * FROM invoices WHERE status IN ('sent','overdue') AND due_date IS NOT NULL AND due_date < ?`,
+    ).bind(today).all<Record<string, unknown>>()
+  ).results || [];
+
+  for (const inv of invoices) {
+    if (inv.status !== 'overdue') {
+      await env.DB.prepare("UPDATE invoices SET status = 'overdue', updated_at = ? WHERE id = ?")
+        .bind(nowISO(), inv.id).run();
+    }
+    // Reuse the once-per-key reminder guard (booking_id column holds the invoice id here).
+    if (!(await claimReminder(env, inv.id as string, 'invoice_overdue'))) continue;
+    const to = await invoiceRecipient(env, inv);
+    if (to) await emailInvoiceReminder(env, to.email, to.name, inv);
   }
 }
 

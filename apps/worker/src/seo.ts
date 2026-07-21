@@ -14,6 +14,7 @@ export interface Meta {
   ogImage?: string;
   ogType: string;
   noindex?: boolean;
+  jsonLd?: string;
 }
 
 const MAX_TITLE = 60;
@@ -26,6 +27,42 @@ function clip(s: string, max: number): string {
 
 function base(env: Env): string {
   return (env.APP_URL || 'https://sanctum.garden').replace(/\/$/, '');
+}
+
+/** Default branded social-share card, used when a page has no image of its own. */
+function defaultOg(b: string): string {
+  return `${b}/og.png`;
+}
+
+// ---- Structured data (JSON-LD) ----
+function orgLd(b: string): Record<string, unknown> {
+  return {
+    '@type': 'Organization',
+    '@id': `${b}/#org`,
+    name: 'Sanctum',
+    url: `${b}/`,
+    logo: `${b}/og.png`,
+    description: 'A marketplace that helps community spaces rent and share their rooms with the neighborhood, with a transparent 1.5% fee.',
+  };
+}
+function siteLd(b: string): Record<string, unknown> {
+  return {
+    '@type': 'WebSite',
+    '@id': `${b}/#website`,
+    url: `${b}/`,
+    name: 'Sanctum',
+    publisher: { '@id': `${b}/#org` },
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: { '@type': 'EntryPoint', urlTemplate: `${b}/find?city={search_term_string}` },
+      'query-input': 'required name=search_term_string',
+    },
+  };
+}
+/** Serialize a schema.org @graph, hardened against </script> breakouts. */
+function ldGraph(b: string, extra: Record<string, unknown>[] = []): string {
+  return JSON.stringify({ '@context': 'https://schema.org', '@graph': [orgLd(b), siteLd(b), ...extra] })
+    .replace(/</g, '\\u003c');
 }
 
 // Static, indexable marketing routes → concise title/description.
@@ -49,7 +86,7 @@ export async function metaForPath(env: Env, path: string): Promise<Meta> {
   const home = STATIC['/'];
 
   if (STATIC[path]) {
-    return { ...STATIC[path], title: clip(STATIC[path].title, MAX_TITLE), description: clip(STATIC[path].description, MAX_DESC), canonical, ogType: 'website' };
+    return { ...STATIC[path], title: clip(STATIC[path].title, MAX_TITLE), description: clip(STATIC[path].description, MAX_DESC), canonical, ogType: 'website', ogImage: defaultOg(b), jsonLd: ldGraph(b) };
   }
 
   const seg = path.split('/').filter(Boolean);
@@ -60,10 +97,20 @@ export async function metaForPath(env: Env, path: string): Promise<Meta> {
         .bind(decodeURIComponent(seg[1])).first<{ name: string; city: string; state: string; description: string | null; cover_image_url: string | null }>();
       if (f) {
         const loc = [f.city, f.state].filter(Boolean).join(', ');
+        const desc = clip(f.description || `Rent space at ${f.name}${loc ? ` in ${loc}` : ''}. Book welcoming community rooms for your next gathering.`, MAX_DESC);
+        const img = f.cover_image_url || defaultOg(b);
+        const place: Record<string, unknown> = {
+          '@type': ['Place', 'LocalBusiness'],
+          name: f.name,
+          description: desc,
+          url: canonical,
+          image: img,
+          ...(f.city || f.state ? { address: { '@type': 'PostalAddress', addressLocality: f.city || undefined, addressRegion: f.state || undefined, addressCountry: 'US' } } : {}),
+        };
         return {
           title: clip(`${f.name}${loc ? ` — ${loc}` : ''} · Sanctum`, MAX_TITLE),
-          description: clip(f.description || `Rent space at ${f.name}${loc ? ` in ${loc}` : ''}. Book welcoming community rooms for your next gathering.`, MAX_DESC),
-          canonical, ogImage: f.cover_image_url || undefined, ogType: 'place',
+          description: desc,
+          canonical, ogImage: img, ogType: 'place', jsonLd: ldGraph(b, [place]),
         };
       }
     }
@@ -74,7 +121,10 @@ export async function metaForPath(env: Env, path: string): Promise<Meta> {
       if (s) {
         let body = '', cover = '';
         try { const c = JSON.parse(s.content || '{}'); body = c.body || c.headline || ''; cover = c.cover || ''; } catch { /* ignore */ }
-        return { title: clip(`${s.title} · Sanctum`, MAX_TITLE), description: clip(body || `You're invited to ${s.title}.`, MAX_DESC), canonical, ogImage: cover || undefined, ogType: 'event' };
+        const desc = clip(body || `You're invited to ${s.title}.`, MAX_DESC);
+        const img = cover || defaultOg(b);
+        const evt: Record<string, unknown> = { '@type': 'Event', name: s.title, description: desc, url: canonical, image: img, eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode' };
+        return { title: clip(`${s.title} · Sanctum`, MAX_TITLE), description: desc, canonical, ogImage: img, ogType: 'event', jsonLd: ldGraph(b, [evt]) };
       }
     }
     // White-label network page: /n/:slug
@@ -82,13 +132,21 @@ export async function metaForPath(env: Env, path: string): Promise<Meta> {
       const n = await env.DB.prepare('SELECT name, description, logo_url FROM networks WHERE slug = ?')
         .bind(decodeURIComponent(seg[1])).first<{ name: string; description: string | null; logo_url: string | null }>();
       if (n) {
-        return { title: clip(`${n.name} · Sanctum`, MAX_TITLE), description: clip(n.description || `Discover welcoming community spaces across the ${n.name}.`, MAX_DESC), canonical, ogImage: n.logo_url || undefined, ogType: 'website' };
+        return { title: clip(`${n.name} · Sanctum`, MAX_TITLE), description: clip(n.description || `Discover welcoming community spaces across the ${n.name}.`, MAX_DESC), canonical, ogImage: n.logo_url || defaultOg(b), ogType: 'website', jsonLd: ldGraph(b) };
       }
     }
   } catch { /* fall through to default */ }
 
   const noindex = NOINDEX_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));
-  return { title: clip(home.title, MAX_TITLE), description: clip(home.description, MAX_DESC), canonical: noindex ? canonical : `${b}/`, ogType: 'website', noindex };
+  return {
+    title: clip(home.title, MAX_TITLE),
+    description: clip(home.description, MAX_DESC),
+    canonical: noindex ? canonical : `${b}/`,
+    ogType: 'website',
+    ogImage: defaultOg(b),
+    noindex,
+    jsonLd: noindex ? undefined : ldGraph(b),
+  };
 }
 
 class Attr {
@@ -113,6 +171,7 @@ export function injectMeta(res: Response, meta: Meta, env: Env): Response {
   const extra = [
     meta.ogImage ? `<meta property="og:image" content="${esc(meta.ogImage)}" />` : '',
     meta.ogImage ? `<meta name="twitter:image" content="${esc(meta.ogImage)}" />` : '',
+    meta.jsonLd ? `<script type="application/ld+json">${meta.jsonLd}</script>` : '',
     env.GSC_VERIFICATION ? `<meta name="google-site-verification" content="${esc(env.GSC_VERIFICATION)}" />` : '',
     // Cloudflare Web Analytics — privacy-first, cookieless (no consent banner needed).
     env.CF_ANALYTICS_TOKEN ? `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${esc(env.CF_ANALYTICS_TOKEN)}"}'></script>` : '',
@@ -136,18 +195,20 @@ export function injectMeta(res: Response, meta: Meta, env: Env): Response {
 /** GET /sitemap.xml — marketing routes + listed facilities, events, networks. */
 export async function sitemap(env: Env): Promise<Response> {
   const b = base(env);
-  const urls: { loc: string; priority: string }[] = Object.keys(STATIC).map((p) => ({ loc: `${b}${p === '/' ? '/' : p}`, priority: p === '/' ? '1.0' : '0.8' }));
+  const day = (v: unknown): string | undefined => (typeof v === 'string' && v ? v.slice(0, 10) : undefined);
+  const urls: { loc: string; priority: string; lastmod?: string }[] =
+    Object.keys(STATIC).map((p) => ({ loc: `${b}${p === '/' ? '/' : p}`, priority: p === '/' ? '1.0' : '0.8' }));
   try {
-    const facs = (await env.DB.prepare('SELECT slug FROM facilities WHERE is_listed = 1').all<{ slug: string }>()).results || [];
-    for (const f of facs) urls.push({ loc: `${b}/c/${encodeURIComponent(f.slug)}`, priority: '0.7' });
-    const evs = (await env.DB.prepare('SELECT slug FROM event_microsites WHERE is_published = 1').all<{ slug: string }>()).results || [];
-    for (const e of evs) urls.push({ loc: `${b}/e/${encodeURIComponent(e.slug)}`, priority: '0.5' });
-    const nets = (await env.DB.prepare('SELECT slug FROM networks').all<{ slug: string }>()).results || [];
-    for (const n of nets) urls.push({ loc: `${b}/n/${encodeURIComponent(n.slug)}`, priority: '0.5' });
+    const facs = (await env.DB.prepare('SELECT slug, updated_at FROM facilities WHERE is_listed = 1').all<{ slug: string; updated_at: string }>()).results || [];
+    for (const f of facs) urls.push({ loc: `${b}/c/${encodeURIComponent(f.slug)}`, priority: '0.7', lastmod: day(f.updated_at) });
+    const evs = (await env.DB.prepare('SELECT slug, updated_at FROM event_microsites WHERE is_published = 1').all<{ slug: string; updated_at: string }>()).results || [];
+    for (const e of evs) urls.push({ loc: `${b}/e/${encodeURIComponent(e.slug)}`, priority: '0.5', lastmod: day(e.updated_at) });
+    const nets = (await env.DB.prepare('SELECT slug, updated_at FROM networks').all<{ slug: string; updated_at: string }>()).results || [];
+    for (const n of nets) urls.push({ loc: `${b}/n/${encodeURIComponent(n.slug)}`, priority: '0.5', lastmod: day(n.updated_at) });
   } catch { /* still return the static routes */ }
 
   const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
-    .map((u) => `  <url><loc>${esc(u.loc)}</loc><changefreq>weekly</changefreq><priority>${u.priority}</priority></url>`)
+    .map((u) => `  <url><loc>${esc(u.loc)}</loc>${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ''}<changefreq>weekly</changefreq><priority>${u.priority}</priority></url>`)
     .join('\n')}\n</urlset>\n`;
   return new Response(body, { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });
 }
@@ -155,7 +216,7 @@ export async function sitemap(env: Env): Promise<Response> {
 /** GET /robots.txt */
 export function robots(env: Env): Response {
   const b = base(env);
-  const body = `User-agent: *\nAllow: /\nDisallow: /operator\nDisallow: /renter\nDisallow: /admin\nDisallow: /book\n\nSitemap: ${b}/sitemap.xml\n`;
+  const body = `User-agent: *\nAllow: /\nDisallow: /operator\nDisallow: /renter\nDisallow: /admin\nDisallow: /book\nDisallow: /login\nDisallow: /signup\nDisallow: /forgot\nDisallow: /reset\nDisallow: /verify\nDisallow: /onboarding\n\nSitemap: ${b}/sitemap.xml\n`;
   return new Response(body, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=86400' } });
 }
 

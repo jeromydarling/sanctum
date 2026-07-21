@@ -71,5 +71,14 @@ test.describe('public smoke', () => {
     const html = await pricing.text();
     expect(html).toMatch(/<title>[^<]*[Pp]ricing/);
     expect(html).toContain('property="og:title"');
+    // A social share image (default branded card) and structured data.
+    expect(html).toMatch(/property="og:image"[^>]*og\.png/);
+    expect(html).toContain('application/ld+json');
+    expect(html).toContain('"@type":"WebSite"');
+
+    // The branded OG image is actually served.
+    const og = await request.get('/og.png');
+    expect(og.ok()).toBeTruthy();
+    expect(og.headers()['content-type']).toContain('image/png');
   });
 });

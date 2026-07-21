@@ -21,6 +21,7 @@ import { handleAdminErrors, handleAdminAnnounce, handleAdminMessage } from './ro
 import { handleNetworkInvite, handleInviteInfo, handleNetworkAccept, handleNetworkJoin, handleNetworkLeave } from './routes/networks.js';
 import { handleQboConnect, handleQboCallback, handleQboStatus, handleQboDisconnect, handleQboSync } from './routes/qbo.js';
 import { handleZapierGet, handleZapierSet, handleZapierTest } from './routes/zapier.js';
+import { handleAnnounce, handleAnnouncementHistory } from './routes/announce.js';
 import { handleIcalExport, handleSubscribeUrl, handleIcalImport } from './routes/ical.js';
 import { runScheduled } from './scheduled.js';
 import { metaForPath, injectMeta, sitemap, robots, llms } from './seo.js';
@@ -261,6 +262,10 @@ async function route(req: Request, env: Env, url: URL, _ctx: ExecutionContext): 
   if (path === '/api/qbo/zapier' && method === 'GET') return handleZapierGet(env, url, auth);
   if (path === '/api/qbo/zapier' && method === 'POST') return handleZapierSet(env, req, auth);
   if (path === '/api/qbo/zapier/test' && method === 'POST') return handleZapierTest(env, req, auth);
+
+  // Operator announcements — one-to-many alerts to tenants/renters.
+  if (path === '/api/operator/announce' && method === 'POST') return handleAnnounce(env, req, auth);
+  if (path === '/api/operator/announcements' && method === 'GET') return handleAnnouncementHistory(env, url, auth);
 
   return err('Not found', 404);
 }

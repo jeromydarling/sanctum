@@ -56,6 +56,17 @@ export const TOURS: TourDef[] = [
     ],
   },
   {
+    key: 'operator-announcements',
+    label: 'Announcements tour',
+    route: '/operator/announcements',
+    steps: [
+      { title: 'Reach everyone at once', body: 'Send an alert to your tenants and upcoming renters — a closure, a schedule change, or a warm note. It goes out in-app and by email.' },
+      { target: 'announce-compose', title: 'Write it once', body: 'A subject and a message — that\'s it. Keep it short; people read these on their phones.' },
+      { target: 'announce-audience', title: 'Choose who hears it', body: 'Recurring tenants, renters with upcoming bookings, or both. The count updates live so you know exactly how many people you\'re reaching before you send.' },
+      { target: 'announce-history', title: 'A record of what went out', body: 'Every announcement you send is kept here, with who it reached and when.' },
+    ],
+  },
+  {
     key: 'operator-financials',
     label: 'Financials tour',
     route: '/operator/financials',

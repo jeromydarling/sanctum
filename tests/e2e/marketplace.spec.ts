@@ -143,4 +143,27 @@ test.describe('marketplace: list → discover → book → pay → confirmed', (
     await expect(opPage.getByRole('heading', { name: eventName })).toBeVisible({ timeout: 20_000 });
     await expect(opPage.getByText(/Confirmed/i).first()).toBeVisible();
   });
+
+  test('the operator can announce to upcoming renters', async () => {
+    // The renter now has an upcoming confirmed booking, so a "renters" announcement
+    // should reach them — verify it lands as an email addressed to the renter.
+    const subject = `E2E Announce ${runId}`;
+    const res = await opPage.request.post('/api/operator/announce', {
+      data: { facility_id: facilityId, title: subject, body: 'The hall will be closed Saturday for cleaning.', audience: 'renters' },
+    });
+    expect(res.ok(), `announce POST returned HTTP ${res.status()}`).toBeTruthy();
+    expect((await res.json()).recipients, 'announcement should have at least one recipient').toBeGreaterThan(0);
+
+    await expect(async () => {
+      const log = await rtPage.request.get(
+        `/api/admin/test/emails?token=${encodeURIComponent(PURGE_TOKEN)}&to=${encodeURIComponent(rtEmail)}`,
+      );
+      expect(log.ok()).toBeTruthy();
+      const body = await log.json();
+      expect(
+        (body.emails || []).some((e: { subject: string }) => e.subject.includes(subject)),
+        `expected the announcement email; got ${JSON.stringify(body.emails)}`,
+      ).toBeTruthy();
+    }).toPass({ timeout: 15_000 });
+  });
 });

@@ -56,7 +56,17 @@ jobs:
             cur=$(curl -s "$BASE_URL/api/health" | jq -r '.version // empty')
             echo "attempt $i: deployed version=${cur:-<none>}"
             if [ -n "$cur" ] && [ "$cur" != "$BASELINE_VERSION" ]; then
-              echo "New deployment is live ($cur)."; exit 0
+              # The version id can flip a beat before every edge colo serves the
+              # new worker. Require it stable across two more polls, then give
+              # edge propagation a short settle before testing.
+              sleep 6
+              c2=$(curl -s "$BASE_URL/api/health" | jq -r '.version // empty')
+              sleep 6
+              c3=$(curl -s "$BASE_URL/api/health" | jq -r '.version // empty')
+              if [ "$c2" = "$cur" ] && [ "$c3" = "$cur" ]; then
+                echo "New deployment is live and stable ($cur). Settling…"; sleep 15; exit 0
+              fi
+              echo "version still settling (saw $cur/$c2/$c3); keep waiting"
             fi
             sleep 10
           done
